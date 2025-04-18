@@ -1,0 +1,73 @@
+services:
+  mysql:
+    image: "mysql:latest"
+    environment:
+      - "MYSQL_DATABASE=code_editor"
+      - "MYSQL_USER=faisal"
+      - "MYSQL_PASSWORD=secret"
+      - "MYSQL_ROOT_PASSWORD=verysecret"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306"
+  backend:
+    build:
+      context: ./authentication
+    container_name: backend-spring-container
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/code_editor
+      SPRING_DATASOURCE_USERNAME: faisal
+      SPRING_DATASOURCE_PASSWORD: secret
+    ports:
+      - "8080:8080"
+
+  code_executor:
+    build:
+      context: ./codeService
+    container_name: codeService-container
+    restart: always
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /tmp/exec:/app/exec
+
+    ports:
+      - "8081:8081"
+  frontend:
+    build:
+      context: ./client
+    container_name: frontend-container
+    restart: always
+    ports:
+      - "3000:3000"
+  
+  
+  projects:
+    build:
+      context: ./projects
+    container_name: projects-container
+    depends_on:
+      - mysql
+    
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/code_editor
+      SPRING_DATASOURCE_USERNAME: faisal
+      SPRING_DATASOURCE_PASSWORD: secret
+
+    ports:
+      - "8082:8082"
+
+
+
+volumes:
+  mysql_data: {}
+  mongo_data: {}
+
+
+
+networks:
+  default:
+    name: atypon

@@ -1,0 +1,9 @@
+
+import RegisterForm from "../auth_components/registerForm";
+export default function RegisterLayout({ children }) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+            <RegisterForm />
+        </div>
+    )
+}

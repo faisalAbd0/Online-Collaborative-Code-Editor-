@@ -1,0 +1,24 @@
+{
+  "name": "editor-front-end",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0",
+    "devo": "next dev",
+    "deva": "next dev --turbopack",
+    "watch": "nodemon -w . -e js,jsx,ts,tsx,json --exec 'npm run dev'",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@uiw/react-codemirror": "^4.23.10",
+    "next": "15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4"
+  }
+}
