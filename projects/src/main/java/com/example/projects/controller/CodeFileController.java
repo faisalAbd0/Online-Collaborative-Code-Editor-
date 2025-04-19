@@ -62,14 +62,17 @@
 //}
 package com.example.projects.controller;
 
+import com.example.projects.dto.TokenValidationRequest;
 import com.example.projects.dto.TokenValidationResponse;
 import com.example.projects.models.CodeFile;
 import com.example.projects.models.CodeProject;
 import com.example.projects.service.CodeFileService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -77,30 +80,32 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/code-file")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin
+        (origins =
+        "http://localhost:3000")
 public class CodeFileController {
     final CodeFileService codeFileService;
     private final JwtApiService jwtApiService;
 
 
 
-    @GetMapping
+    @PostMapping("/user-projects")
     public List<CodeProject> findProjectsByToken(
-            @RequestHeader("Authorization") String token
+            @RequestBody TokenValidationResponse tokenValidationResponse
     ) {
+
+        Long userId = tokenValidationResponse.getUserId();
         System.out.println(">>>>>>>");
-        System.out.println(token);
-        TokenValidationResponse info = getId(token);
+        System.out.println(userId);
         System.out.println("<<<<<<<");
-        System.out.println(info.getUserId());
-        Optional<List<CodeProject>> code = codeFileService.findUserProject(info.getUserId());
+        Optional<List<CodeProject>> code = codeFileService.findUserProject(userId);
         if (code.isEmpty()) {
-            throw new IllegalArgumentException("No project found");
+            return new ArrayList<>();
         }
         return code.get();
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/project/{id}")
     public ResponseEntity<CodeProject> findProjectById(
             @PathVariable String id
     ){
@@ -148,9 +153,8 @@ public class CodeFileController {
         return deleted ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
     }
 
-    public TokenValidationResponse getId(String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
-        return jwtApiService.getUserIdFromToken(token);
+    public Long getId(String authHeader) {
+        return jwtApiService.callJwtApi(authHeader);
     }
 
 }

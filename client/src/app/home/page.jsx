@@ -32,17 +32,45 @@ export default function HomePage() {
         setError(null);
 
         try {
+            console.log("FAISAL1");
             const token = localStorage.getItem("token");
             if (!token) {
                 router.push("/login");
                 return;
             }
 
-            const response = await fetch("http://localhost:8082/api/code-file", {
+            console.log("FAISALFAISAL222");
+            
+
+            const isValidResponse = await fetch("http://localhost:8080/api/jwt/isValid", {
                 headers: {
                     Authorization: `Bearer ${token}`,
-                }
+                },
             });
+
+            if (!isValidResponse.ok) {
+                throw new Error("Invalid token");
+            }
+            const isValidData = await isValidResponse.json();
+            console.log(isValidData);
+        
+            const userId = isValidData.userId;
+            console.log("USERIDIDIDIDIDIDIDID", userId);
+            
+
+            
+            const response = await fetch(`http://localhost:8082/api/code-file/user-projects`, 
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        
+                    },
+                    body: JSON.stringify({
+                        userId: userId
+                    }),
+                }
+            );
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch projects: ${response.status}`);
@@ -66,7 +94,7 @@ export default function HomePage() {
 
     const handleCreateNewProject = () => {
         setShowModal(true);
-        
+
     };
 
     const handleSubmit = async (e) => {

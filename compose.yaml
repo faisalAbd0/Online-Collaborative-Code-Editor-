@@ -10,10 +10,10 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
-      - "3306"
+      - "3306:3306"
   backend:
     build:
-      context: ./authentication
+      context: ./projects-test
     container_name: backend-spring-container
     restart: always
     depends_on:
@@ -25,17 +25,17 @@ services:
     ports:
       - "8080:8080"
 
-  code_executor:
-    build:
-      context: ./codeService
-    container_name: codeService-container
-    restart: always
-    volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
-    - /tmp/exec:/app/exec
+  # code_executor:
+  #   build:
+  #     context: ./codeService
+  #   container_name: codeService-container
+  #   restart: always
+  #   volumes:
+  #   - /var/run/docker.sock:/var/run/docker.sock
+  #   - /tmp/exec:/app/exec
 
-    ports:
-      - "8081:8081"
+  #   ports:
+  #     - "8081:8081"
   frontend:
     build:
       context: ./client
@@ -51,7 +51,7 @@ services:
     container_name: projects-container
     depends_on:
       - mysql
-    
+  
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/code_editor
       SPRING_DATASOURCE_USERNAME: faisal
@@ -64,7 +64,7 @@ services:
 
 volumes:
   mysql_data: {}
-  mongo_data: {}
+  # mongo_data: {}
 
 
 
