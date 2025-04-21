@@ -130,6 +130,8 @@ public class CodeFileController {
     public ResponseEntity<CodeProject> addFile(
             @PathVariable String projectId,
             @RequestBody CodeFile file) {
+        System.out.println(projectId);
+        System.out.println(file);
         return codeFileService.addFileToProject(projectId, file)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -140,6 +142,11 @@ public class CodeFileController {
             @PathVariable String projectId,
             @PathVariable String filename,
             @RequestBody Map<String, String> update) {
+
+        System.out.println(projectId + " " +  filename);
+        for (var item : update.entrySet())
+            System.out.println(item.getKey() + ": :" + item.getValue());
+
         return codeFileService.updateFile(projectId, filename, update.get("content"))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

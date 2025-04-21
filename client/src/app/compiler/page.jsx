@@ -3,7 +3,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function CodeEditor({ projectId }) {
+export default function CodeEditor({ projectId, project }) {
     const [code, setCode] = useState("");
     const [language, setLanguage] = useState("java");
     const [output, setOutput] = useState("");
@@ -11,97 +11,48 @@ export default function CodeEditor({ projectId }) {
     const [currentFile, setCurrentFile] = useState(null);
     const [newFileName, setNewFileName] = useState("");
     const [isAddingFile, setIsAddingFile] = useState(false);
-    const [project, setProject] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
     const router = useRouter();
 
     useEffect(() => {
-        // Fetch project data when component mounts
-        if (projectId) {
-            fetchProject();
-        }
-    }, [projectId]);
-
-    const fetchProject = async () => {
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const token = localStorage.getItem("token");
-            if (!token) {
-                router.push("/login");
-                return;
-            }
-
-            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch project: ${response.status}`);
-            }
-
-            const projectData = await response.json();
-            setProject(projectData);
-            setLanguage(projectData.language.toLowerCase());
-
-            // Set files from project
-            if (projectData.files && projectData.files.length > 0) {
-                setFiles(projectData.files);
-                setCurrentFile(projectData.files[0]);
-                setCode(projectData.files[0].content || "");
-            }
-        } catch (error) {
-            console.error("Error fetching project:", error);
-            setError("Failed to load project. Please try again.");
-        } finally {
+        if (project) {
             setIsLoading(false);
+            setLanguage(project.language.toLowerCase());
+            if (project.files && project.files.length > 0) {
+                setFiles(project.files);
+                setCurrentFile(project.files[0]);
+                setCode(project.files[0].content || "");
+            }
         }
-    };
-
-    // const handleFileChange = (file) => {
-    //     // Save current file content before switching
-    //     if (currentFile) {
-    //         saveFileContent(currentFile.filename, code);
-    //     }
-
-    //     setCurrentFile(file);
-    //     setCode(file.content || "");
-    // };
+    }, [project]);
 
     const handleFileChange = async (file) => {
-        // If no file change needed
         if (currentFile && currentFile.filename === file.filename) {
             return;
         }
 
-        // Save current file content before switching if there are unsaved changes
         if (currentFile && code !== currentFile.content) {
             try {
                 await saveFileContent(currentFile.filename, code);
             } catch (error) {
                 console.error("Error saving file before switch:", error);
                 setOutput(`Failed to save ${currentFile.filename}: ${error.message}`);
-                return; // Don't switch files if save fails
+                return;
             }
         }
 
-        // Now switch to the new file
         setCurrentFile(file);
         setCode(file.content || "");
     };
+
     const saveFileContent = async (filename, content) => {
-        const file = files.find(f => f.filename === filename);
+        const file = files.find((f) => f.filename === filename);
         if (file && file.content === content) {
             return;
         }
         try {
-
-
             const token = localStorage.getItem("token");
             if (!token) {
                 router.push("/login");
@@ -112,9 +63,9 @@ export default function CodeEditor({ projectId }) {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    "Authorization": `Bearer ${token}`,
                 },
-                body: JSON.stringify({ content })
+                body: JSON.stringify({ content }),
             });
 
             if (!response.ok) {
@@ -122,16 +73,13 @@ export default function CodeEditor({ projectId }) {
             }
 
             const updatedProject = await response.json();
-            setProject(updatedProject);
             setFiles(updatedProject.files || []);
 
-            // Update currentFile with the new content
             if (currentFile && currentFile.filename === filename) {
-                const updatedFile = updatedProject.files.find(f => f.filename === filename);
+                const updatedFile = updatedProject.files.find((f) => f.filename === filename);
                 setCurrentFile(updatedFile);
             }
 
-            // Show save confirmation
             setOutput("File saved successfully");
             setTimeout(() => {
                 if (output === "File saved successfully") {
@@ -150,9 +98,8 @@ export default function CodeEditor({ projectId }) {
             return;
         }
 
-        // Add file extension if not present
         let filename = newFileName;
-        if (!filename.includes('.')) {
+        if (!filename.includes(".")) {
             const extension = getFileExtension(language);
             filename = `${filename}.${extension}`;
         }
@@ -168,12 +115,12 @@ export default function CodeEditor({ projectId }) {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    "Authorization": `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     filename,
-                    content: ""
-                })
+                    content: "",
+                }),
             });
 
             if (!response.ok) {
@@ -181,17 +128,14 @@ export default function CodeEditor({ projectId }) {
             }
 
             const updatedProject = await response.json();
-            setProject(updatedProject);
             setFiles(updatedProject.files || []);
 
-            // Select the newly added file
-            const newFile = updatedProject.files.find(f => f.filename === filename);
+            const newFile = updatedProject.files.find((f) => f.filename === filename);
             if (newFile) {
                 setCurrentFile(newFile);
                 setCode(newFile.content || "");
             }
 
-            // Reset form
             setNewFileName("");
             setIsAddingFile(false);
             setOutput(`File ${filename} created successfully`);
@@ -216,19 +160,18 @@ export default function CodeEditor({ projectId }) {
             const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
                 method: "DELETE",
                 headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+                    Authorization: `Bearer ${token}`,
+                },
             });
 
             if (!response.ok) {
                 throw new Error(`Failed to delete file: ${response.status}`);
             }
 
-            // Refresh project data
-            await fetchProject();
+            const updatedProject = await response.json();
+            setFiles(updatedProject.files || []);
             setOutput(`File ${filename} deleted successfully`);
 
-            // If the current file was deleted, reset the editor
             if (currentFile && currentFile.filename === filename) {
                 setCurrentFile(null);
                 setCode("");
@@ -241,16 +184,20 @@ export default function CodeEditor({ projectId }) {
 
     const getFileExtension = (lang) => {
         switch (lang.toLowerCase()) {
-            case "java": return "java";
-            case "python": return "py";
-            case "c": return "c";
-            case "cpp": return "cpp";
-            default: return "txt";
+            case "java":
+                return "java";
+            case "python":
+                return "py";
+            case "c":
+                return "c";
+            case "cpp":
+                return "cpp";
+            default:
+                return "txt";
         }
     };
 
     const handleRun = async () => {
-        // Save current file before running
         if (currentFile) {
             await saveFileContent(currentFile.filename, code);
         }
@@ -262,17 +209,16 @@ export default function CodeEditor({ projectId }) {
                 return;
             }
 
-            // For now, we'll just execute the current file
             const response = await fetch("http://localhost:8081/api/code/execute", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    "Authorization": `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                     code,
-                    language: language.toLowerCase()
-                })
+                    language: language.toLowerCase(),
+                }),
             });
 
             if (!response.ok) {
@@ -302,10 +248,10 @@ export default function CodeEditor({ projectId }) {
                     <p className="font-bold">Error</p>
                     <p>{error}</p>
                     <button
-                        onClick={fetchProject}
+                        onClick={() => router.push("/")}
                         className="mt-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                     >
-                        Try Again
+                        Return to Dashboard
                     </button>
                 </div>
             </div>
@@ -320,7 +266,7 @@ export default function CodeEditor({ projectId }) {
                 </h2>
                 <div className="flex justify-center space-x-4 text-gray-600">
                     <p>Language: {project?.language}</p>
-                    <p>Created: {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : ''}</p>
+                    <p>Created: {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : ""}</p>
                     <p>Project ID: {projectId}</p>
                 </div>
             </div>
@@ -372,7 +318,11 @@ export default function CodeEditor({ projectId }) {
                                             <div className="px-3 py-2 flex justify-between items-center">
                                                 <button
                                                     onClick={() => handleFileChange(file)}
-                                                    className={`text-left flex-grow truncate ${currentFile && currentFile.filename === file.filename ? 'font-bold text-blue-600' : ''}`}
+                                                    className={`text-left flex-grow truncate ${
+                                                        currentFile && currentFile.filename === file.filename
+                                                            ? "font-bold text-blue-600"
+                                                            : ""
+                                                    }`}
                                                 >
                                                     {file.filename}
                                                 </button>
@@ -418,7 +368,7 @@ export default function CodeEditor({ projectId }) {
                                 options={{
                                     mode: language,
                                     lineNumbers: true,
-                                    theme: 'default'
+                                    theme: "default",
                                 }}
                                 onChange={(value) => setCode(value)}
                                 height="400px"
