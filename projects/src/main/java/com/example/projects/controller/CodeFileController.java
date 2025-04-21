@@ -115,7 +115,7 @@ public class CodeFileController {
         }
         return ResponseEntity.ok(project.get());
     }
-    @PostMapping
+    @PostMapping("/save")
     public ResponseEntity<CodeProject> save(@RequestBody CodeProject codeProject) {
         // Ensure we have a created date
         if (codeProject.getCreatedAt() == null) {

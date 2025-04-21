@@ -86,6 +86,9 @@ package com.example.projects.models;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -93,6 +96,7 @@ import java.util.List;
 @Data
 @Entity
 @Table(name = "code_projects")
+@NoArgsConstructor
 public class CodeProject {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -112,15 +116,20 @@ public class CodeProject {
     @JoinColumn(name = "project_id")
     private List<CodeFile> files = new ArrayList<>();
 
-    public CodeProject() {
-    }
-
     public CodeProject(String projectName, String description, Language language,
                        LocalDateTime createdAt, Long userId) {
         this.projectName = projectName;
         this.description = description;
         this.language = language;
         this.createdAt = createdAt;
+        this.userId = userId;
+    }
+
+    public CodeProject(String projectName, String description, Language language,
+                       Long userId) {
+        this.projectName = projectName;
+        this.description = description;
+        this.language = language;
         this.userId = userId;
     }
 

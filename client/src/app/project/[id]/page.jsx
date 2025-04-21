@@ -46,7 +46,7 @@ export default function ProjectPage() {
             }
             console.log(projectId);
 
-            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}`, {
+            const response = await fetch(`http://localhost:8082/api/code-file/project/${projectId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 }
@@ -57,6 +57,8 @@ export default function ProjectPage() {
             }
 
             const data = await response.json();
+            console.log(data);
+            
             setProject(data);
         } catch (err) {
             console.error("Error fetching project:", err);

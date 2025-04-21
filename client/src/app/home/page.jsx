@@ -7,6 +7,8 @@ export default function HomePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [userId, setUserId] = useState(null);
+
     const [newProject, setNewProject] = useState({
         projectName: "",
         language: "Java",
@@ -16,7 +18,6 @@ export default function HomePage() {
     const router = useRouter();
 
     useEffect(() => {
-        // Check for token in URL params and save to localStorage if present
         const fetchToken = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const token = urlParams.get("token");
@@ -32,15 +33,11 @@ export default function HomePage() {
         setError(null);
 
         try {
-            console.log("FAISAL1");
             const token = localStorage.getItem("token");
             if (!token) {
                 router.push("/login");
                 return;
             }
-
-            console.log("FAISALFAISAL222");
-            
 
             const isValidResponse = await fetch("http://localhost:8080/api/jwt/isValid", {
                 headers: {
@@ -51,35 +48,25 @@ export default function HomePage() {
             if (!isValidResponse.ok) {
                 throw new Error("Invalid token");
             }
-            const isValidData = await isValidResponse.json();
-            console.log(isValidData);
-        
-            const userId = isValidData.userId;
-            console.log("USERIDIDIDIDIDIDIDID", userId);
-            
 
-            
-            const response = await fetch(`http://localhost:8082/api/code-file/user-projects`, 
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        
-                    },
-                    body: JSON.stringify({
-                        userId: userId
-                    }),
-                }
-            );
+            const isValidData = await isValidResponse.json();
+            const fetchedUserId = isValidData.userId;
+            setUserId(fetchedUserId);
+            console.log("USERID SET:", fetchedUserId);
+
+            const response = await fetch("http://localhost:8082/api/code-file/user-projects", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ userId: fetchedUserId }),
+            });
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch projects: ${response.status}`);
             }
 
             const data = await response.json();
-            console.log(data);
-
-            // Remove duplicates by using a Map with project id as key
             const uniqueProjects = Array.from(
                 new Map(data.map(project => [project.id, project])).values()
             );
@@ -94,7 +81,6 @@ export default function HomePage() {
 
     const handleCreateNewProject = () => {
         setShowModal(true);
-
     };
 
     const handleSubmit = async (e) => {
@@ -107,6 +93,11 @@ export default function HomePage() {
                 return;
             }
 
+            if (!userId) {
+                alert("User ID not found. Please refresh.");
+                return;
+            }
+
             const response = await fetch("http://localhost:8082/api/code-file", {
                 method: "POST",
                 headers: {
@@ -116,18 +107,16 @@ export default function HomePage() {
                 body: JSON.stringify({
                     projectName: newProject.projectName,
                     language: newProject.language,
-                    description: newProject.language // Using language as description as per API format
-                })
+                    description: newProject.description,
+                    userId: userId,
+                }),
             });
 
             if (!response.ok) {
                 throw new Error(`Failed to create project: ${response.status}`);
             }
 
-            // Refresh projects list
             fetchProjects();
-
-            // Reset form and close modal
             setNewProject({ projectName: "", language: "Java", description: "" });
             setShowModal(false);
         } catch (err) {
@@ -137,7 +126,6 @@ export default function HomePage() {
     };
 
     const handleProjectClick = (projectId) => {
-        console.log(projectId);
         router.push(`/project/${projectId}`);
     };
 
@@ -178,7 +166,9 @@ export default function HomePage() {
                         >
                             <h2 className="text-2xl font-semibold">{project.projectName}</h2>
                             <p className="text-gray-700">Language: {project.language}</p>
-                            <p className="text-gray-500 text-sm">Created: {new Date(project.createdAt).toLocaleDateString()}</p>
+                            <p className="text-gray-500 text-sm">
+                                Created: {new Date(project.createdAt).toLocaleDateString()}
+                            </p>
                         </div>
                     ))
                 )}
@@ -209,8 +199,7 @@ export default function HomePage() {
                                     onChange={(e) =>
                                         setNewProject({
                                             ...newProject,
-                                            language: e.target.value,
-                                            description: e.target.value
+                                            language: e.target.value
                                         })
                                     }
                                     className="w-full border rounded px-3 py-2 mt-1"
@@ -220,6 +209,19 @@ export default function HomePage() {
                                     <option>C</option>
                                     <option>Python</option>
                                 </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium">Description</label>
+                                <input
+                                    type="text"
+                                    value={newProject.description}
+                                    onChange={(e) =>
+                                        setNewProject({ ...newProject, description: e.target.value })
+                                    }
+                                    required
+                                    className="w-full border rounded px-3 py-2 mt-1"
+                                />
                             </div>
 
                             <div className="flex justify-end space-x-2 pt-4">
