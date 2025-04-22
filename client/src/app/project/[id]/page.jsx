@@ -1,19 +1,3 @@
-// 'use client';
-// import CodeEditor from '@/app/compiler/page';
-// import { useParams } from 'next/navigation';
-// // import CodeEditor from '@/components/CodeEditor';
-
-// export default function ProjectPage() {
-//     const params = useParams();
-//     const projectId = params.id;
-
-//     return (
-//         <div>
-//             <h1 className="text-xl font-bold p-4">Project ID: {projectId}</h1>
-//             <CodeEditor projectId={projectId} />
-//         </div>
-//     );
-// }
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -58,7 +42,7 @@ export default function ProjectPage() {
 
             const data = await response.json();
             console.log(data);
-            
+
             setProject(data);
         } catch (err) {
             console.error("Error fetching project:", err);
@@ -114,7 +98,9 @@ export default function ProjectPage() {
             </nav>
 
             <div className="container mx-auto">
-                <CodeEditor projectId={projectId} />
+                <CodeEditor
+                    project={project}
+                    projectId={projectId} />
             </div>
         </div>
     );

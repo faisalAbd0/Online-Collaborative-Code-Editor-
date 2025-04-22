@@ -2,8 +2,8 @@
 import CodeMirror from "@uiw/react-codemirror";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
-export default function CodeEditor({ projectId, project }) {
+import { connectWebSocket, sendEditMessage } from "@/lib/websocket"; // Adjust the import path as necessary
+export default function CodeEditor({ projectId }) {
     const [code, setCode] = useState("");
     const [language, setLanguage] = useState("java");
     const [output, setOutput] = useState("");
@@ -11,48 +11,196 @@ export default function CodeEditor({ projectId, project }) {
     const [currentFile, setCurrentFile] = useState(null);
     const [newFileName, setNewFileName] = useState("");
     const [isAddingFile, setIsAddingFile] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [project, setProject] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-
     const router = useRouter();
+    const [showHistory, setShowHistory] = useState(false);
+    const [history, setHistory] = useState([]);
+
+    const fetchFileHistory = async (filename) => {
+        try {
+            const token = localStorage.getItem("token");
+            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}/history`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setHistory(data);
+        } catch (err) {
+            console.error("Failed to fetch history:", err);
+        }
+    };
+
 
     useEffect(() => {
-        if (project) {
-            setIsLoading(false);
-            setLanguage(project.language.toLowerCase());
-            if (project.files && project.files.length > 0) {
-                setFiles(project.files);
-                setCurrentFile(project.files[0]);
-                setCode(project.files[0].content || "");
-            }
+        if (showHistory && currentFile) {
+            fetchFileHistory(currentFile.filename);
         }
-    }, [project]);
+    }, [showHistory]);
+
+
+    function getCurrentUserId() {
+        const userId = localStorage.getItem("userId");
+        if (!userId) {
+            router.push("/login");
+            return null;
+        }
+        return userId;
+    }
+
+
+    useEffect(() => {
+        // Fetch project data when component mounts
+        if (projectId) {
+            fetchProject();
+        }
+    }, [projectId]);
+
+    useEffect(() => {
+        connectWebSocket((incoming) => {
+            if (
+                incoming.projectId === projectId &&
+                incoming.filename === currentFile?.filename &&
+                incoming.userId !== getCurrentUserId()
+            ) {
+                console.log("Received edit from another user");
+                setCode(incoming.content); // update the code for real-time sync
+            }
+        });
+    }, [projectId, currentFile]);
+
+    const fetchProject = async () => {
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/login");
+                return;
+            }
+
+            const response = await fetch(`http://localhost:8082/api/code-file/project/${projectId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch project: ${response.status}`);
+            }
+
+            const projectData = await response.json();
+            setProject(projectData);
+            setLanguage(projectData.language.toLowerCase());
+
+            // Set files from project
+            if (projectData.files && projectData.files.length > 0) {
+                setFiles(projectData.files);
+                setCurrentFile(projectData.files[0]);
+                setCode(projectData.files[0].content || "");
+            }
+        } catch (error) {
+            console.error("Error fetching project:", error);
+            setError("Failed to load project. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // const handleFileChange = (file) => {
+    //     // Save current file content before switching
+    //     if (currentFile) {
+    //         saveFileContent(currentFile.filename, code);
+    //     }
+
+    //     setCurrentFile(file);
+    //     setCode(file.content || "");
+    // };
 
     const handleFileChange = async (file) => {
+        // If no file change needed
         if (currentFile && currentFile.filename === file.filename) {
             return;
         }
 
+        // Save current file content before switching if there are unsaved changes
         if (currentFile && code !== currentFile.content) {
             try {
                 await saveFileContent(currentFile.filename, code);
             } catch (error) {
                 console.error("Error saving file before switch:", error);
                 setOutput(`Failed to save ${currentFile.filename}: ${error.message}`);
-                return;
+                return; // Don't switch files if save fails
             }
         }
 
+        // Now switch to the new file
         setCurrentFile(file);
         setCode(file.content || "");
     };
-
     const saveFileContent = async (filename, content) => {
-        const file = files.find((f) => f.filename === filename);
+        const file = files.find(f => f.filename === filename);
+        if (file && file.content === content) {
+            return;
+        }
+    
+        try {
+            const token = localStorage.getItem("token");
+            console.log("NEWNEWNWENEW ");
+
+            console.log("projectId");
+            console.log(projectId);
+
+            console.log("filename");
+            console.log(filename);
+
+            console.log("content");
+            console.log(content);
+
+            console.log("userId");
+            console.log(getCurrentUserId());
+            
+        
+        
+            
+            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    content,
+                    userId: getCurrentUserId()
+                })
+            });
+    
+            if (!response.ok) {
+                throw new Error(`Failed to save file: ${response.status}`);
+            }
+    
+            const updatedProject = await response.json();
+            setProject(updatedProject);
+            setFiles(updatedProject.files || []);
+            const updatedFile = updatedProject.files.find(f => f.filename === filename);
+            setCurrentFile(updatedFile);
+            setOutput("File saved successfully");
+        } catch (error) {
+            console.error("Error saving file:", error);
+            setOutput(`Error saving file: ${error.message}`);
+        }
+    };
+    
+    const saveFileContentOO = async (filename, content) => {
+        const file = files.find(f => f.filename === filename);
         if (file && file.content === content) {
             return;
         }
         try {
+
+
             const token = localStorage.getItem("token");
             if (!token) {
                 router.push("/login");
@@ -63,9 +211,9 @@ export default function CodeEditor({ projectId, project }) {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`,
+                    "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ content }),
+                body: JSON.stringify({ content })
             });
 
             if (!response.ok) {
@@ -73,13 +221,16 @@ export default function CodeEditor({ projectId, project }) {
             }
 
             const updatedProject = await response.json();
+            setProject(updatedProject);
             setFiles(updatedProject.files || []);
 
+            // Update currentFile with the new content
             if (currentFile && currentFile.filename === filename) {
-                const updatedFile = updatedProject.files.find((f) => f.filename === filename);
+                const updatedFile = updatedProject.files.find(f => f.filename === filename);
                 setCurrentFile(updatedFile);
             }
 
+            // Show save confirmation
             setOutput("File saved successfully");
             setTimeout(() => {
                 if (output === "File saved successfully") {
@@ -98,8 +249,9 @@ export default function CodeEditor({ projectId, project }) {
             return;
         }
 
+        // Add file extension if not present
         let filename = newFileName;
-        if (!filename.includes(".")) {
+        if (!filename.includes('.')) {
             const extension = getFileExtension(language);
             filename = `${filename}.${extension}`;
         }
@@ -115,12 +267,12 @@ export default function CodeEditor({ projectId, project }) {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`,
+                    "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     filename,
-                    content: "",
-                }),
+                    content: ""
+                })
             });
 
             if (!response.ok) {
@@ -128,14 +280,17 @@ export default function CodeEditor({ projectId, project }) {
             }
 
             const updatedProject = await response.json();
+            setProject(updatedProject);
             setFiles(updatedProject.files || []);
 
-            const newFile = updatedProject.files.find((f) => f.filename === filename);
+            // Select the newly added file
+            const newFile = updatedProject.files.find(f => f.filename === filename);
             if (newFile) {
                 setCurrentFile(newFile);
                 setCode(newFile.content || "");
             }
 
+            // Reset form
             setNewFileName("");
             setIsAddingFile(false);
             setOutput(`File ${filename} created successfully`);
@@ -160,18 +315,19 @@ export default function CodeEditor({ projectId, project }) {
             const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
                 method: "DELETE",
                 headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                    "Authorization": `Bearer ${token}`
+                }
             });
 
             if (!response.ok) {
                 throw new Error(`Failed to delete file: ${response.status}`);
             }
 
-            const updatedProject = await response.json();
-            setFiles(updatedProject.files || []);
+            // Refresh project data
+            await fetchProject();
             setOutput(`File ${filename} deleted successfully`);
 
+            // If the current file was deleted, reset the editor
             if (currentFile && currentFile.filename === filename) {
                 setCurrentFile(null);
                 setCode("");
@@ -184,20 +340,16 @@ export default function CodeEditor({ projectId, project }) {
 
     const getFileExtension = (lang) => {
         switch (lang.toLowerCase()) {
-            case "java":
-                return "java";
-            case "python":
-                return "py";
-            case "c":
-                return "c";
-            case "cpp":
-                return "cpp";
-            default:
-                return "txt";
+            case "java": return "java";
+            case "python": return "py";
+            case "c": return "c";
+            case "cpp": return "cpp";
+            default: return "txt";
         }
     };
 
     const handleRun = async () => {
+        // Save current file before running
         if (currentFile) {
             await saveFileContent(currentFile.filename, code);
         }
@@ -209,16 +361,17 @@ export default function CodeEditor({ projectId, project }) {
                 return;
             }
 
+            // For now, we'll just execute the current file
             const response = await fetch("http://localhost:8081/api/code/execute", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`,
+                    "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     code,
-                    language: language.toLowerCase(),
-                }),
+                    language: language.toLowerCase()
+                })
             });
 
             if (!response.ok) {
@@ -248,10 +401,10 @@ export default function CodeEditor({ projectId, project }) {
                     <p className="font-bold">Error</p>
                     <p>{error}</p>
                     <button
-                        onClick={() => router.push("/")}
+                        onClick={fetchProject}
                         className="mt-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                     >
-                        Return to Dashboard
+                        Try Again
                     </button>
                 </div>
             </div>
@@ -266,7 +419,7 @@ export default function CodeEditor({ projectId, project }) {
                 </h2>
                 <div className="flex justify-center space-x-4 text-gray-600">
                     <p>Language: {project?.language}</p>
-                    <p>Created: {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : ""}</p>
+                    <p>Created: {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : ''}</p>
                     <p>Project ID: {projectId}</p>
                 </div>
             </div>
@@ -318,11 +471,7 @@ export default function CodeEditor({ projectId, project }) {
                                             <div className="px-3 py-2 flex justify-between items-center">
                                                 <button
                                                     onClick={() => handleFileChange(file)}
-                                                    className={`text-left flex-grow truncate ${
-                                                        currentFile && currentFile.filename === file.filename
-                                                            ? "font-bold text-blue-600"
-                                                            : ""
-                                                    }`}
+                                                    className={`text-left flex-grow truncate ${currentFile && currentFile.filename === file.filename ? 'font-bold text-blue-600' : ''}`}
                                                 >
                                                     {file.filename}
                                                 </button>
@@ -368,9 +517,20 @@ export default function CodeEditor({ projectId, project }) {
                                 options={{
                                     mode: language,
                                     lineNumbers: true,
-                                    theme: "default",
+                                    theme: 'default'
                                 }}
-                                onChange={(value) => setCode(value)}
+                                onChange={(value) => {
+                                    setCode(value);
+
+                                    sendEditMessage({
+                                        projectId,
+                                        filename: currentFile?.filename,
+                                        content: value,
+                                        userId: getCurrentUserId(),
+                                        timestamp: new Date().toISOString(),
+                                    });
+                                }}
+
                                 height="400px"
                             />
                         </div>
@@ -385,12 +545,23 @@ export default function CodeEditor({ projectId, project }) {
                             </button>
 
                             {currentFile && (
-                                <button
-                                    onClick={() => saveFileContent(currentFile.filename, code)}
-                                    className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition"
-                                >
-                                    Save File
-                                </button>
+                                <>
+                                    <button
+                                        onClick={() => saveFileContent(currentFile.filename, code)}
+                                        className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition"
+                                    >
+                                        Save File
+                                    </button>
+
+                                    <button
+                                        onClick={() => setShowHistory(true)}
+                                        className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                                    >
+                                        View History
+                                    </button>
+
+                                </>
+
                             )}
                         </div>
                     </div>
@@ -399,6 +570,36 @@ export default function CodeEditor({ projectId, project }) {
                         <h3 className="font-medium mb-2">Output</h3>
                         <pre className="p-4 bg-gray-800 text-white rounded-md overflow-auto h-48">{output}</pre>
                     </div>
+
+                    {showHistory && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+                            <div className="bg-white p-6 rounded shadow-lg max-w-lg w-full">
+                                <h2 className="text-xl font-bold mb-4">File History</h2>
+                                <ul className="space-y-2 max-h-80 overflow-y-auto">
+                                    {history.map((v, index) => (
+                                        <li key={index} className="border-b pb-2">
+                                            <p><strong>User:</strong> {v.editedBy}</p>
+                                            <p><strong>Time:</strong> {new Date(v.timestamp).toLocaleString()}</p>
+                                            <pre className="bg-gray-100 p-2 rounded overflow-auto">{v.content}</pre>
+                                            <button
+                                                className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                                onClick={() => setCode(v.content)}
+                                            >
+                                                Restore This Version
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button
+                                    className="mt-4 px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                    onClick={() => setShowHistory(false)}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             </div>
         </div>

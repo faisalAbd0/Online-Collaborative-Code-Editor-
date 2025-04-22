@@ -52,6 +52,7 @@ export default function HomePage() {
             const isValidData = await isValidResponse.json();
             const fetchedUserId = isValidData.userId;
             setUserId(fetchedUserId);
+            localStorage.setItem("userId", fetchedUserId);
             console.log("USERID SET:", fetchedUserId);
 
             const response = await fetch("http://localhost:8082/api/code-file/user-projects", {

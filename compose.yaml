@@ -1,20 +1,81 @@
-version: '3.8'
+# version: '3.8'
+
+# services:
+#   mysql:
+#     image: "docker.io/library/mysql:latest"  # Fully qualified name
+#     environment:
+#       MYSQL_DATABASE: code_editor
+#       MYSQL_USER: faisal
+#       MYSQL_PASSWORD: secret
+#       MYSQL_ROOT_PASSWORD: verysecret
+#     volumes:
+#       - mysql_data:/var/lib/mysql
+#     ports:
+#       - "3306:3306"
+#     networks:
+#       - atypon
+
+#   backend:
+#     build:
+#       context: ./projects-test
+#     container_name: backend-spring-container
+#     restart: always
+#     depends_on:
+#       - mysql
+#     environment:
+#       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/code_editor
+#       SPRING_DATASOURCE_USERNAME: faisal
+#       SPRING_DATASOURCE_PASSWORD: secret
+#     ports:
+#       - "8080:8080"
+#     networks:
+#       - atypon
+
+#   frontend:
+#     build:
+#       context: ./client
+#     container_name: frontend-container
+#     restart: always
+#     ports:
+#       - "3000:3000"
+#     networks:
+#       - atypon
+  
+#   projects:
+#     build:
+#       context: ./projects
+#     container_name: projects-container
+#     depends_on:
+#       - mysql
+#     environment:
+#       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/code_editor
+#       SPRING_DATASOURCE_USERNAME: faisal
+#       SPRING_DATASOURCE_PASSWORD: secret
+#     ports:
+#       - "8082:8082"
+#     networks:
+#       - atypon
+
+# volumes:
+#   mysql_data: {}
+
+# networks:
+#   atypon:
+#     name: atypon
 
 services:
   mysql:
-    image: "docker.io/library/mysql:latest"  # Fully qualified name
+    image: "mysql:latest"
     environment:
-      MYSQL_DATABASE: code_editor
-      MYSQL_USER: faisal
-      MYSQL_PASSWORD: secret
-      MYSQL_ROOT_PASSWORD: verysecret
+      - "MYSQL_DATABASE=code_editor"
+      - "MYSQL_USER=faisal"
+      - "MYSQL_PASSWORD=secret"
+      - "MYSQL_ROOT_PASSWORD=verysecret"
+
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
       - "3306:3306"
-    networks:
-      - atypon
-
   backend:
     build:
       context: ./projects-test
@@ -28,9 +89,18 @@ services:
       SPRING_DATASOURCE_PASSWORD: secret
     ports:
       - "8080:8080"
-    networks:
-      - atypon
 
+  code_executor:
+    build:
+      context: ./codeService
+    container_name: codeService-container
+    restart: always
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /tmp/exec:/app/exec
+
+    ports:
+      - "8081:8081"
   frontend:
     build:
       context: ./client
@@ -38,8 +108,7 @@ services:
     restart: always
     ports:
       - "3000:3000"
-    networks:
-      - atypon
+  
   
   projects:
     build:
@@ -47,18 +116,22 @@ services:
     container_name: projects-container
     depends_on:
       - mysql
+  
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/code_editor
       SPRING_DATASOURCE_USERNAME: faisal
       SPRING_DATASOURCE_PASSWORD: secret
+
     ports:
       - "8082:8082"
-    networks:
-      - atypon
+
+
 
 volumes:
   mysql_data: {}
 
+
+
 networks:
-  atypon:
+  default:
     name: atypon

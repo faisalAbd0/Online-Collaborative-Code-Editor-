@@ -1,71 +1,10 @@
-//package com.example.projects.controller;
-//
-//import com.example.projects.models.CodeFile;
-//import com.example.projects.models.CodeProject;
-//import com.example.projects.service.CodeFileService;
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.web.bind.annotation.*;
-//
-//import java.util.List;
-//import java.util.Map;
-//
-//@RestController
-//@RequestMapping("/api/code-file")
-//@RequiredArgsConstructor
-//public class CodeFileController {
-//    final CodeFileService codeFileService;
-//
-//    @GetMapping
-//    public List<CodeProject> getCodeFiles() {
-//        return codeFileService.findAll();
-//    }
-//
-//    @GetMapping("/{id}")
-//    public ResponseEntity<CodeProject> getProjectById(@PathVariable String id) {
-//        return codeFileService.findById(id)
-//                .map(ResponseEntity::ok)
-//                .orElse(ResponseEntity.notFound().build());
-//    }
-//
-//    @PostMapping
-//    public CodeProject save(@RequestBody CodeProject codeFile) {
-//        return codeFileService.save(codeFile);
-//    }
-//
-//    @PostMapping("/{projectId}/files")
-//    public ResponseEntity<CodeProject> addFile(
-//            @PathVariable String projectId,
-//            @RequestBody CodeFile file) {
-//        return codeFileService.addFileToProject(projectId, file)
-//                .map(ResponseEntity::ok)
-//                .orElse(ResponseEntity.notFound().build());
-//    }
-//
-//    @PutMapping("/{projectId}/files/{filename}")
-//    public ResponseEntity<CodeProject> updateFile(
-//            @PathVariable String projectId,
-//            @PathVariable String filename,
-//            @RequestBody Map<String, String> update) {
-//        return codeFileService.updateFile(projectId, filename, update.get("content"))
-//                .map(ResponseEntity::ok)
-//                .orElse(ResponseEntity.notFound().build());
-//    }
-//
-//    @DeleteMapping("/{projectId}/files/{filename}")
-//    public ResponseEntity<Void> deleteFile(
-//            @PathVariable String projectId,
-//            @PathVariable String filename) {
-//        boolean deleted = codeFileService.deleteFile(projectId, filename);
-//        return deleted ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
-//    }
-//}
 package com.example.projects.controller;
 
 import com.example.projects.dto.TokenValidationRequest;
 import com.example.projects.dto.TokenValidationResponse;
 import com.example.projects.models.CodeFile;
 import com.example.projects.models.CodeProject;
+import com.example.projects.models.CodeVersion;
 import com.example.projects.service.CodeFileService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
@@ -141,16 +80,20 @@ public class CodeFileController {
     public ResponseEntity<CodeProject> updateFile(
             @PathVariable String projectId,
             @PathVariable String filename,
-            @RequestBody Map<String, String> update) {
+            @RequestBody Map<String, String> update
+    ) {
 
-        System.out.println(projectId + " " +  filename);
-        for (var item : update.entrySet())
-            System.out.println(item.getKey() + ": :" + item.getValue());
 
-        return codeFileService.updateFile(projectId, filename, update.get("content"))
+        String content = update.get("content");
+        String userId = update.get("userId"); // 👈 userId is passed directly from the frontend
+
+        System.out.println("Updating file for userId: " + userId);
+        System.out.println("The content is: " + content);
+        return codeFileService.updateFile(projectId, filename, content, userId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
+
 
     @DeleteMapping("/{projectId}/files/{filename}")
     public ResponseEntity<Void> deleteFile(
@@ -158,6 +101,23 @@ public class CodeFileController {
             @PathVariable String filename) {
         boolean deleted = codeFileService.deleteFile(projectId, filename);
         return deleted ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+    }
+
+
+    @GetMapping("/{projectId}/files/{filename}/history")
+    public ResponseEntity<List<CodeVersion>> getFileHistory(
+            @PathVariable String projectId,
+            @PathVariable String filename
+    ) {
+        Optional<CodeProject> projectOpt = codeFileService.findById(projectId);
+        if (projectOpt.isPresent()) {
+            for (CodeFile file : projectOpt.get().getFiles()) {
+                if (file.getFilename().equals(filename)) {
+                    return ResponseEntity.ok(file.getHistory());
+                }
+            }
+        }
+        return ResponseEntity.notFound().build();
     }
 
     public Long getId(String authHeader) {

@@ -162,9 +162,9 @@ public class CodeFileService {
         return Optional.empty();
     }
 
-    @Transactional
-    public Optional<CodeProject> updateFile(String projectId, String filename, String newContent) {
+    public Optional<CodeProject> updateFile(String projectId, String filename, String newContent, String userId) {
         try {
+
             Long longId = Long.parseLong(projectId);
             Optional<CodeProject> projectOpt = codeFileRepository.findById(longId);
 
@@ -173,6 +173,16 @@ public class CodeFileService {
 
                 for (CodeFile file : project.getFiles()) {
                     if (file.getFilename().equals(filename)) {
+                        // Save current version before updating
+                        System.out.println(">>> userId = " + userId);
+                        System.out.println(">>> filename = " + filename);
+                        System.out.println(">>> content = " + newContent);
+                        System.out.println(">>> file.getContent() = " + file.getContent());
+                        System.out.println(">>> is history null? " + (file.getHistory() == null));
+
+                        file.addVersion(userId);
+
+                        // Update content
                         file.setContent(newContent);
                         file.setUpdatedAt(LocalDateTime.now());
                         return Optional.of(codeFileRepository.save(project));
@@ -180,11 +190,15 @@ public class CodeFileService {
                 }
             }
         } catch (NumberFormatException e) {
-            return Optional.empty();
+            System.out.println("🔥🔥🔥 Error in updateFile:");
+            e.printStackTrace();
+
+
         }
 
         return Optional.empty();
     }
+
 
     @Transactional
     public boolean deleteFile(String projectId, String filename) {

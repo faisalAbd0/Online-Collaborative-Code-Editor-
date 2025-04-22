@@ -37,6 +37,50 @@ public class CodeExecutionService {
         return result;
     }
 
+
+    private String getFileExtension(String language) {
+        switch (language) {
+            case "java": return "java";
+            case "python": return "py";
+            case "c": return "c";
+            case "cpp": return "cpp";
+            default: throw new IllegalArgumentException("Unsupported language");
+        }
+    }
+
+    private List<String> getDockerCommand(String language, String filename) {
+        String volumeMount = "/tmp/exec:/app/exec";
+
+        switch (language) {
+            case "java":
+                return List.of(
+                        "docker", "run", "--rm", "-v", volumeMount, "openjdk",
+                        "sh", "-c",
+                        "javac /app/exec/" + filename + " && java -cp /app/exec Main; rm -f /app/exec/Main.class"
+                );
+            case "python":
+                return List.of(
+                        "docker", "run", "--rm", "-v", volumeMount, "python",
+                        "python", "/app/exec/" + filename
+                );
+            case "c":
+                return List.of(
+                        "docker", "run", "--rm", "-v", volumeMount, "gcc",
+                        "sh", "-c",
+                        "gcc /app/exec/" + filename + " -o /app/exec/a.out && /app/exec/a.out; rm -f /app/exec/a.out"
+                );
+            case "cpp":
+                return List.of(
+                        "docker", "run", "--rm", "-v", volumeMount, "gcc",
+                        "sh", "-c",
+                        "g++ /app/exec/" + filename + " -o /app/exec/a.out && /app/exec/a.out; rm -f /app/exec/a.out"
+                );
+            default:
+                throw new IllegalArgumentException("Unsupported language");
+        }
+    }
+
+
     public String executeMultiFileProject(Map<String, String> files, String language) throws IOException {
         String result;
         String execDir = "/app/exec/project_" + System.currentTimeMillis();
@@ -145,47 +189,6 @@ public class CodeExecutionService {
         }
     }
 
-    private String getFileExtension(String language) {
-        switch (language) {
-            case "java": return "java";
-            case "python": return "py";
-            case "c": return "c";
-            case "cpp": return "cpp";
-            default: throw new IllegalArgumentException("Unsupported language");
-        }
-    }
-
-    private List<String> getDockerCommand(String language, String filename) {
-        String volumeMount = "/tmp/exec:/app/exec";
-
-        switch (language) {
-            case "java":
-                return List.of(
-                        "docker", "run", "--rm", "-v", volumeMount, "openjdk",
-                        "sh", "-c",
-                        "javac /app/exec/" + filename + " && java -cp /app/exec Main; rm -f /app/exec/Main.class"
-                );
-            case "python":
-                return List.of(
-                        "docker", "run", "--rm", "-v", volumeMount, "python",
-                        "python", "/app/exec/" + filename
-                );
-            case "c":
-                return List.of(
-                        "docker", "run", "--rm", "-v", volumeMount, "gcc",
-                        "sh", "-c",
-                        "gcc /app/exec/" + filename + " -o /app/exec/a.out && /app/exec/a.out; rm -f /app/exec/a.out"
-                );
-            case "cpp":
-                return List.of(
-                        "docker", "run", "--rm", "-v", volumeMount, "gcc",
-                        "sh", "-c",
-                        "g++ /app/exec/" + filename + " -o /app/exec/a.out && /app/exec/a.out; rm -f /app/exec/a.out"
-                );
-            default:
-                throw new IllegalArgumentException("Unsupported language");
-        }
-    }
 
     private List<String> getMultiFileDockerCommand(String language, String projectDir, String mainFileName) {
         String relativeProjectPath = projectDir.substring(projectDir.lastIndexOf("/") + 1);
