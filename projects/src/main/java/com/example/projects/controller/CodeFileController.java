@@ -24,9 +24,6 @@ import java.util.Optional;
         "http://localhost:3000")
 public class CodeFileController {
     final CodeFileService codeFileService;
-    private final JwtApiService jwtApiService;
-
-
 
     @PostMapping("/user-projects")
     public List<CodeProject> findProjectsByToken(
@@ -120,8 +117,6 @@ public class CodeFileController {
         return ResponseEntity.notFound().build();
     }
 
-    public Long getId(String authHeader) {
-        return jwtApiService.callJwtApi(authHeader);
-    }
+
 
 }

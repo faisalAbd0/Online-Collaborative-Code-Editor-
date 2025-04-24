@@ -99,7 +99,7 @@ export default function HomePage() {
                 return;
             }
 
-            const response = await fetch("http://localhost:8082/api/code-file", {
+            const response = await fetch("http://localhost:8082/api/code-file/save", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
