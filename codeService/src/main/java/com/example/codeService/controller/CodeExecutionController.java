@@ -59,12 +59,14 @@ public class CodeExecutionController {
         }
     }
 
-    @PostMapping("/execute-project")
-    public String executeMultiFileProject(@RequestBody MultiFileCodeRequest request) {
+    @PostMapping("/execute-multi")
+    public String executeMulti(@RequestBody MultiFileCodeRequest req) {
         try {
-            return codeExecutionService.executeMultiFileProject(request.getFiles(), request.getLanguage());
-        } catch (IOException e) {
-            return "Error executing project: " + e.getMessage();
+            return codeExecutionService.executeMulti(req);
+        } catch(IOException e) {
+            return "Error: " + e.getMessage();
         }
     }
+
+
 }

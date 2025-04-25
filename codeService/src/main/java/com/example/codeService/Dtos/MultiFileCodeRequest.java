@@ -6,10 +6,9 @@ import lombok.NoArgsConstructor;
 
 import java.util.Map;
 
-@AllArgsConstructor
-@NoArgsConstructor
 @Data
 public class MultiFileCodeRequest {
-    private Map<String, String> files; // filename -> content
+    private Map<String,String> files;
     private String language;
+    private String mainClass;
 }
