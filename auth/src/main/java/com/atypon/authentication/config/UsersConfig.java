@@ -4,6 +4,7 @@ package com.atypon.authentication.config;
 
 import com.atypon.authentication.models.User;
 import com.atypon.authentication.repository.UserRepository;
+import com.atypon.authentication.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -15,23 +16,35 @@ public class UsersConfig {
 
     private final UserRepository userRepository;
     @Bean
-    CommandLineRunner commandLineRunner() {
+    CommandLineRunner commandLineRunner(UserService userService) {
         return args -> {
-//            User user = User.builder().email("admin@gmail.com").password("123")
-//                    .firstName("faisal").lastName("abdo").username("SISI").build();
-//
-//            User user1 = User.builder().email("123@gmail.com").password("123")
-//                    .firstName("momo").lastName("abdo").username("fafa").build();
 
-            User user2 = new User();
-            user2.setEmail("admin@gmail.com");
-            user2.setPassword("123");
-            user2.setFirstName("momo");
-            user2.setLastName("abdo");
-            user2.setUserIdentifier("fafa");
+            User u1 = new User();
+            u1.setEmail("faisal111@gmail.com");
+            u1.setPassword("123");
+            u1.setFirstName("Momo");
+            u1.setLastName("Abdo");
+            u1.setUserIdentifier("fafa");
+            userService.save(u1);
 
-//            userRepository.save(user2);
-//            userRepository.save(user1);
+            // Second user
+            User u2 = new User();
+            u2.setEmail("issag@gmail.com");
+            u2.setPassword("123");
+            u2.setFirstName("Iss");
+            u2.setLastName("Av");
+            u2.setUserIdentifier("iso");
+            userService.save(u2);
+
+            // Third user
+            User u3 = new User();
+            u3.setEmail("ali@gmail.com");
+            u3.setPassword("123");
+            u3.setFirstName("Ali");
+            u3.setLastName("Khan");
+            u3.setUserIdentifier("ali123");
+            userService.save(u3);
+
 
         };
     }

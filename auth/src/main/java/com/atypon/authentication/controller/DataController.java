@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -21,6 +22,17 @@ import java.util.Optional;
 public class DataController {
 
     private final UserService userService;
+    @GetMapping("/all-users")
+    public List<User> getAllUsers() {
+        return userService.findAll();
+    }
+
+    /** Given a list of IDs, return their User objects */
+    @PostMapping("/users/batch")
+    public List<User> getUsersByIds(@RequestBody List<Long> ids) {
+        return userService.findByIds(ids);
+    }
+
     @GetMapping("/user-info")
     public User getUserInfo(@RequestHeader("Authorization")  String token) {
 

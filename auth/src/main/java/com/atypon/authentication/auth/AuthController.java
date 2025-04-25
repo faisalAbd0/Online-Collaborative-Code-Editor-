@@ -1,4 +1,3 @@
-//package com.example.demo.auth;
 package com.atypon.authentication.auth;
 import com.atypon.authentication.dtos.AuthenticationRequest;
 import com.atypon.authentication.dtos.AuthenticationResponse;

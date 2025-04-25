@@ -12,10 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/code-file")
@@ -140,6 +137,18 @@ public class CodeFileController {
         CodeProject project = projectOpt.get();
         return ResponseEntity.ok(project.getCollaboratorIds());
     }
+
+    @PostMapping("/shared-projects")
+    public ResponseEntity<List<CodeProject>> getSharedProjects(
+            @RequestBody TokenValidationResponse tokenValidation
+    ) {
+        Long userId = tokenValidation.getUserId();
+        return codeFileService
+                .findProjectsByCollaborator(userId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.ok(Collections.emptyList()));
+    }
+
 
 
 

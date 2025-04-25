@@ -19,20 +19,6 @@ public class JwtController {
 
     private final JwtService jwtService;
 
-//
-//    @GetMapping("/isValid")
-//    public TokenValidationResponse fetchIdByToken(@RequestParam String token) {
-//        System.out.println("JWT token received: " + token);
-//
-//        if (jwtService.isTokenExpired(token)){
-//            return new TokenValidationResponse();
-//        }
-//        TokenValidationResponse tokenValidationResponse = new TokenValidationResponse();
-//        tokenValidationResponse.setUserId(jwtService.extractIdToken(token.substring(7)));
-//
-//        return tokenValidationResponse;
-//    }
-
     @GetMapping("/isValid")
     public ResponseEntity<TokenValidationResponse> fetchIdByToken
             (@RequestHeader("Authorization") AuthenticationResponse authenticationRequest) {

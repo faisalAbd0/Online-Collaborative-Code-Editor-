@@ -20,7 +20,6 @@ EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "app.jar"]
 
 
-#
 #FROM openjdk:21-jdk-slim
 #
 #WORKDIR /app

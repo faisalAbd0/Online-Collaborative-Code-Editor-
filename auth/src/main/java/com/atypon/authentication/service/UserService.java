@@ -15,8 +15,14 @@ import java.util.Optional;
 public class UserService {
     final private UserRepository userRepository;
     private final JwtService jwtService;
+
+
     public List<User> findAll() {
         return userRepository.findAll();
+    }
+
+    public List<User> findByIds(List<Long> ids) {
+        return userRepository.findAllById(ids);
     }
 
     public Optional<User> findUser(String token) {

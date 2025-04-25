@@ -116,6 +116,11 @@ public class CodeFileService {
         return codeFileRepository.findAll();
     }
 
+    public Optional<List<CodeProject>> findProjectsByCollaborator(Long userId) {
+        return Optional.of(codeFileRepository.findByCollaboratorIdsContaining(userId));
+    }
+
+
     public Optional<CodeProject> findById(String id) {
         try {
             Long longId = Long.parseLong(id);

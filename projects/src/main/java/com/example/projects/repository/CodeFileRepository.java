@@ -12,4 +12,6 @@ public interface CodeFileRepository
 
     Optional<CodeProject> findByUserId(Long userId);
     Optional<List<CodeProject>> findAllByUserId(Long userId);
+    List<CodeProject> findByCollaboratorIdsContaining(Long userId);
+
 }
