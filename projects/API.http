@@ -1,0 +1,21 @@
+### GET request to example server
+GET https://examples.http-client.intellij.net/get
+    ?generated-in=IntelliJ IDEA
+
+###
+
+### GET request to example server
+GET https://examples.http-client.intellij.net/get
+    ?generated-in=IntelliJ IDEA
+
+###
+
+PUT http://localhost:8082/api/code-file/65ff3a1d81f4ab3c9f24c47c/files/Test.java
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwic3ViIjoiZmFpc2xhYmR1Mjc3QGdtYWlsLmNvbSIsImlhdCI6MTc0NTUxNDY3MCwiZXhwIjoxNzQ1NTE2MTEwfQ.OFqf6NURZIpHRA8ugZi1btL91Yak9KWEos7PgtA0fo0
+
+{
+  "content": "public class Test {}",
+  "userId": "5"
+}
+

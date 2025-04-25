@@ -1,0 +1,1911 @@
+export const metadata = {
+    title: 'Home'
+}
+export default function HomeLayout({ children }) {
+    return (
+        <>{children}</>
+    )
+}
+"use client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+export default function HomePage() {
+    const [projects, setProjects] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [showModal, setShowModal] = useState(false);
+    const [userId, setUserId] = useState(null);
+
+    const [newProject, setNewProject] = useState({
+        projectName: "",
+        language: "Java",
+        description: ""
+    });
+
+    const router = useRouter();
+
+    useEffect(() => {
+        const fetchToken = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get("token");
+            if (token) localStorage.setItem("token", token);
+        };
+
+        fetchToken();
+        fetchProjects();
+    }, []);
+
+    const fetchProjects = async () => {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/login");
+                return;
+            }
+
+            const isValidResponse = await fetch("http://localhost:8080/api/jwt/isValid", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!isValidResponse.ok) {
+                throw new Error("Invalid token");
+            }
+
+            const isValidData = await isValidResponse.json();
+            const fetchedUserId = isValidData.userId;
+            setUserId(fetchedUserId);
+            localStorage.setItem("userId", fetchedUserId);
+            console.log("USERID SET:", fetchedUserId);
+
+            const response = await fetch("http://localhost:8082/api/code-file/user-projects", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ userId: fetchedUserId }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch projects: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const uniqueProjects = Array.from(
+                new Map(data.map(project => [project.id, project])).values()
+            );
+            setProjects(uniqueProjects);
+        } catch (err) {
+            console.error("Error fetching projects:", err);
+            setError("Failed to load projects. Please try again later.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleCreateNewProject = () => {
+        setShowModal(true);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/login");
+                return;
+            }
+
+            if (!userId) {
+                alert("User ID not found. Please refresh.");
+                return;
+            }
+
+            const response = await fetch("http://localhost:8082/api/code-file/save", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    projectName: newProject.projectName,
+                    language: newProject.language,
+                    description: newProject.description,
+                    userId: userId,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to create project: ${response.status}`);
+            }
+
+            fetchProjects();
+            setNewProject({ projectName: "", language: "Java", description: "" });
+            setShowModal(false);
+        } catch (err) {
+            console.error("Error creating project:", err);
+            alert("Failed to create project. Please try again.");
+        }
+    };
+
+    const handleProjectClick = (projectId) => {
+        router.push(`/project/${projectId}`);
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen">
+                <p className="text-xl">Loading your projects...</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen py-8 px-4">
+            <h1 className="text-4xl font-bold mb-6">Your Projects</h1>
+
+            <button
+                className="bg-blue-600 text-white px-6 py-2 mb-6 rounded hover:bg-blue-700 transition"
+                onClick={handleCreateNewProject}
+            >
+                + Create New Project
+            </button>
+
+            {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6 w-full max-w-2xl">
+                    {error}
+                </div>
+            )}
+
+            <div className="w-full max-w-2xl space-y-4">
+                {projects.length === 0 ? (
+                    <p className="text-center text-gray-500">No projects found. Create a new one to get started.</p>
+                ) : (
+                    projects.map((project) => (
+                        <div
+                            key={project.id}
+                            onClick={() => handleProjectClick(project.id)}
+                            className="border p-4 rounded shadow hover:shadow-lg transition cursor-pointer"
+                        >
+                            <h2 className="text-2xl font-semibold">{project.projectName}</h2>
+                            <p className="text-gray-700">Language: {project.language}</p>
+                            <p className="text-gray-500 text-sm">
+                                Created: {new Date(project.createdAt).toLocaleDateString()}
+                            </p>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {showModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
+                        <h2 className="text-2xl font-semibold mb-4">Create New Project</h2>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium">Project Name</label>
+                                <input
+                                    type="text"
+                                    value={newProject.projectName}
+                                    onChange={(e) =>
+                                        setNewProject({ ...newProject, projectName: e.target.value })
+                                    }
+                                    required
+                                    className="w-full border rounded px-3 py-2 mt-1"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium">Language</label>
+                                <select
+                                    value={newProject.language}
+                                    onChange={(e) =>
+                                        setNewProject({
+                                            ...newProject,
+                                            language: e.target.value
+                                        })
+                                    }
+                                    className="w-full border rounded px-3 py-2 mt-1"
+                                >
+                                    <option>Java</option>
+                                    <option>C++</option>
+                                    <option>C</option>
+                                    <option>Python</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium">Description</label>
+                                <input
+                                    type="text"
+                                    value={newProject.description}
+                                    onChange={(e) =>
+                                        setNewProject({ ...newProject, description: e.target.value })
+                                    }
+                                    required
+                                    className="w-full border rounded px-3 py-2 mt-1"
+                                />
+                            </div>
+
+                            <div className="flex justify-end space-x-2 pt-4">
+                                <button
+                                    type="button"
+                                    className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                                    onClick={() => setShowModal(false)}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                >
+                                    Create
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// http://localhost:8080/oauth2/authorization/google
+// http://localhost:8080/oauth2/authorization/github
+
+const GoogleLoginButton = () => {
+    const handleLogin = () => {
+        window.location.href = 'http://localhost:8080/oauth2/authorization/google';
+    };
+
+    return (
+
+        <button
+            onClick={handleLogin}
+            type="button" className="text-white bg-[#4285F4] hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 me-2 mb-2">
+            <svg className="w-4 h-4 me-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 18 19">
+                <path fillRule="evenodd" d="M8.842 18.083a8.8 8.8 0 0 1-8.65-8.948 8.841 8.841 0 0 1 8.8-8.652h.153a8.464 8.464 0 0 1 5.7 2.257l-2.193 2.038A5.27 5.27 0 0 0 9.09 3.4a5.882 5.882 0 0 0-.2 11.76h.124a5.091 5.091 0 0 0 5.248-4.057L14.3 11H9V8h8.34c.066.543.095 1.09.088 1.636-.086 5.053-3.463 8.449-8.4 8.449l-.186-.002Z" clipRule="evenodd" />
+            </svg>
+            Sign in with Google
+        </button>
+
+
+
+    );
+};
+
+export default GoogleLoginButton;
+"use client";
+
+import { useState } from "react";
+import GoogleLoginButton from "./google";
+import GithubLoginButton from "./github";
+
+export default function RegisterForm() {
+    const [formData, setFormData] = useState({
+        firstName: "",
+        lastName: "",
+        userIdentifier: "",
+        email: "",
+        password: ""
+    });
+
+    const [error, setError] = useState(null);
+
+    const handleChange = (e) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value
+        });
+    };
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+        setError(null);
+
+        try {
+            const response = await fetch("http://localhost:8080/api/auth/register", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                console.log("Registration successful:", result);
+                alert("Registration successful!");
+                localStorage.setItem("token", result.token);
+            } else {
+                console.error("Registration failed:", result);
+                setError(result.message || "Registration failed. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error during registration:", error);
+            setError("An error occurred. Please try again.");
+        }
+    };
+
+    const labels = {
+        firstName: "First Name",
+        lastName: "Last Name",
+        userIdentifier: "Username",
+        email: "Email",
+        password: "Password"
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+            <div className="bg-white shadow-lg rounded-2xl p-8 flex flex-col md:flex-row gap-10 w-full max-w-4xl">
+                {/* Form Section */}
+                <form onSubmit={handleSubmit} className="flex-1 space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-800">Create an Account</h2>
+
+                    {Object.keys(formData).map((field) => (
+                        <div key={field}>
+                            <label htmlFor={field} className="block text-sm font-medium text-gray-700">
+                                {labels[field]}
+                            </label>
+                            <input
+                                type={field === "email" ? "email" : field === "password" ? "password" : "text"}
+                                id={field}
+                                name={field}
+                                value={formData[field]}
+                                onChange={handleChange}
+                                placeholder={`Enter your ${labels[field].toLowerCase()}`}
+                                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                required
+                            />
+                        </div>
+                    ))}
+
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                    <button
+                        type="submit"
+                        className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"
+                    >
+                        Register
+                    </button>
+                </form>
+
+                {/* Divider */}
+                <div className="hidden md:block w-px bg-gray-300"></div>
+
+                {/* Social Login */}
+                <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                    <h3 className="text-gray-600 text-lg font-semibold">Or sign up with</h3>
+                    <GoogleLoginButton />
+                    <GithubLoginButton />
+                </div>
+            </div>
+        </div>
+    );
+}
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation"; // Next.js 13+ router
+import GoogleLoginButton from "./google";
+import GithubLoginButton from "./github";
+
+export default function LoginForm() {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState(null);
+    const router = useRouter(); // hook to navigate
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError(null);
+
+        const requestData = { email, password };
+
+        try {
+            const response = await fetch("http://localhost:8080/api/auth/authenticate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(requestData),
+            });
+
+            if (!response.ok) {
+                throw new Error("Invalid credentials");
+            }
+
+            const data = await response.json();
+            alert("Login successful!");
+            localStorage.setItem("token", data.token);
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+            <div className="bg-white shadow-lg rounded-2xl p-8 flex flex-col md:flex-row gap-10 w-full max-w-4xl">
+                {/* Login Form */}
+                <form onSubmit={handleSubmit} className="flex-1 space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
+
+                    <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                            Email
+                        </label>
+                        <input
+                            type="email"
+                            id="email"
+                            className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter your email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            id="password"
+                            className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter your password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
+
+                    <button
+                        type="submit"
+                        className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"
+                    >
+                        Login
+                    </button>
+
+                    <div className="text-sm text-center text-gray-600">
+                        Don’t have an account?{" "}
+                        <button
+                            type="button"
+                            onClick={() => router.push("/auth/register")}
+                            className="text-blue-500 hover:underline"
+                        >
+                            Register here
+                        </button>
+                    </div>
+                </form>
+
+                {/* Divider */}
+                <div className="hidden md:block w-px bg-gray-300"></div>
+
+                {/* Social Login */}
+                <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                    <h3 className="text-gray-600 text-lg font-semibold">Or sign in with</h3>
+                    <GoogleLoginButton />
+                    <GithubLoginButton />
+                </div>
+            </div>
+        </div>
+    );
+}
+const GithubLoginButton = () => {
+    const handleLogin = () => {
+        window.location.href = 'http://localhost:8080/oauth2/authorization/github';
+    };
+
+    return (
+        <button
+            onClick={handleLogin}
+            type="button" className="text-white bg-[#24292F] hover:bg-[#24292F]/90 focus:ring-4 focus:outline-none focus:ring-[#24292F]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 dark:hover:bg-[#050708]/30 me-2 mb-2">
+            <svg className="w-4 h-4 me-2" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 .333A9.911 9.911 0 0 0 6.866 19.65c.5.092.678-.215.678-.477 0-.237-.01-1.017-.014-1.845-2.757.6-3.338-1.169-3.338-1.169a2.627 2.627 0 0 0-1.1-1.451c-.9-.615.07-.6.07-.6a2.084 2.084 0 0 1 1.518 1.021 2.11 2.11 0 0 0 2.884.823c.044-.503.268-.973.63-1.325-2.2-.25-4.516-1.1-4.516-4.9A3.832 3.832 0 0 1 4.7 7.068a3.56 3.56 0 0 1 .095-2.623s.832-.266 2.726 1.016a9.409 9.409 0 0 1 4.962 0c1.89-1.282 2.717-1.016 2.717-1.016.366.83.402 1.768.1 2.623a3.827 3.827 0 0 1 1.02 2.659c0 3.807-2.319 4.644-4.525 4.889a2.366 2.366 0 0 1 .673 1.834c0 1.326-.012 2.394-.012 2.72 0 .263.18.572.681.475A9.911 9.911 0 0 0 10 .333Z" clipRule="evenodd" />
+            </svg>
+            Sign in with Github
+        </button>
+
+
+    );
+};
+
+export default GithubLoginButton;
+export const metadata = {
+    title: 'Register'
+}
+export default function RegisterLayout({ children }) {
+    return (
+            <>{children}</> 
+    )
+}
+import RegisterForm from "../auth_components/registerForm";
+export default function RegisterLayout({ children }) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+            <RegisterForm />
+        </div>
+    )
+}
+export const metadata = {
+    title: 'Login'
+}
+export default function LoginLayout({ children }) {
+    return (
+        <>{children}</>
+    )
+}
+import LoginForm from "../auth_components/loginForm";
+export default function LoginPage({ children }) {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+
+            <LoginForm />
+        </div>
+
+    );
+}"use client";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import CodeEditor from "@/app/compiler/page";
+export default function ProjectPage() {
+    const params = useParams();
+    const projectId = params.id;
+    const [project, setProject] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const router = useRouter();
+
+    useEffect(() => {
+        console.log("Fetching project info...");
+
+        fetchProjectInfo();
+
+        console.log("Project info fetched");
+
+    }, [projectId]);
+
+    const fetchProjectInfo = async () => {
+        setIsLoading(true);
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/login");
+                return;
+            }
+            console.log(projectId);
+
+            const response = await fetch(`http://localhost:8082/api/code-file/project/${projectId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch project info: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log(data);
+
+            setProject(data);
+        } catch (err) {
+            console.error("Error fetching project:", err);
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <p className="text-xl">Loading project...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md">
+                    <p className="font-bold">Error loading project</p>
+                    <p>{error}</p>
+                    <button
+                        onClick={() => router.push("/")}
+                        className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    >
+                        Return to Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-100">
+            <nav className="bg-white shadow-sm p-4">
+                <div className="container mx-auto flex justify-between items-center">
+                    <div className="flex items-center">
+                        <button
+                            className="mr-4 text-blue-600 hover:text-blue-800"
+                            onClick={() => router.push("/")}
+                        >
+                            ← Back to Projects
+                        </button>
+                        <h1 className="text-xl font-bold">{project?.projectName || "Project"}</h1>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                        <span className="mr-4">Language: {project?.language}</span>
+                        <span>Project ID: {projectId}</span>
+                    </div>
+                </div>
+            </nav>
+
+            <div className="container mx-auto">
+                <CodeEditor
+                    project={project}
+                    projectId={projectId} />
+            </div>
+        </div>
+    );
+}import Link from "next/link";
+
+export default function Header() {
+    return (
+        <div className="bg-blue-500 p-4 text-white text-center flex justify-between items-center">
+            <h1 className="text-2xl">Welcome to the Code Editor</h1>
+            <Link href="/profile">
+                <button className="bg-white text-blue-500 px-4 py-2 rounded hover:bg-gray-200">
+                    Profile
+                </button>
+            </Link>
+
+    
+        </div>
+
+    );
+}
+export default function Footer() {
+    return (
+        <div className="bg-gray-800 text-white p-4 text-center">
+            <p>&copy; 2025 Your Company. All Rights Reserved.</p>
+        </div>
+    );
+}
+// "use client";
+// import CodeMirror from "@uiw/react-codemirror";
+// import { useState, useEffect } from "react";
+// import { useRouter } from "next/navigation";
+
+// export default function CodeEditor({ projectId }) {
+//     const [code, setCode] = useState("");
+//     const [language, setLanguage] = useState("java");
+//     const [output, setOutput] = useState("");
+//     const [files, setFiles] = useState([]);
+//     const [currentFile, setCurrentFile] = useState(null);
+//     const [newFileName, setNewFileName] = useState("");
+//     const [isAddingFile, setIsAddingFile] = useState(false);
+//     const [project, setProject] = useState(null);
+//     const [isLoading, setIsLoading] = useState(true);
+//     const [error, setError] = useState(null);
+
+//     const router = useRouter();
+
+//     useEffect(() => {
+//         // Fetch project data when component mounts
+//         if (projectId) {
+//             fetchProject();
+//         }
+//     }, [projectId]);
+
+//     const fetchProject = async () => {
+//         setIsLoading(true);
+//         setError(null);
+
+//         try {
+//             const token = localStorage.getItem("token");
+//             if (!token) {
+//                 router.push("/login");
+//                 return;
+//             }
+
+//             const response = await fetch(`http://localhost:8082/api/code-file/${projectId}`, {
+//                 headers: {
+//                     Authorization: `Bearer ${token}`,
+//                 }
+//             });
+
+//             if (!response.ok) {
+//                 throw new Error(`Failed to fetch project: ${response.status}`);
+//             }
+
+//             const projectData = await response.json();
+//             setProject(projectData);
+//             setLanguage(projectData.language.toLowerCase());
+
+//             // Set files from project
+//             if (projectData.files && projectData.files.length > 0) {
+//                 setFiles(projectData.files);
+//                 setCurrentFile(projectData.files[0]);
+//                 setCode(projectData.files[0].content || "");
+//             }
+//         } catch (error) {
+//             console.error("Error fetching project:", error);
+//             setError("Failed to load project. Please try again.");
+//         } finally {
+//             setIsLoading(false);
+//         }
+//     };
+
+//     const handleFileChange = (file) => {
+//         // Save current file content before switching
+//         if (currentFile) {
+//             saveFileContent(currentFile.filename, code);
+//         }
+
+//         setCurrentFile(file);
+//         setCode(file.content || "");
+//     };
+
+//     const saveFileContent = async (filename, content) => {
+//         try {
+//             const token = localStorage.getItem("token");
+//             if (!token) {
+//                 router.push("/login");
+//                 return;
+//             }
+
+//             const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
+//                 method: "PUT",
+//                 headers: {
+//                     "Content-Type": "application/json",
+//                     "Authorization": `Bearer ${token}`
+//                 },
+//                 body: JSON.stringify({ content })
+//             });
+
+//             if (!response.ok) {
+//                 throw new Error(`Failed to save file: ${response.status}`);
+//             }
+
+//             const updatedProject = await response.json();
+//             setProject(updatedProject);
+//             setFiles(updatedProject.files || []);
+
+//             // Update currentFile with the new content
+//             if (currentFile && currentFile.filename === filename) {
+//                 const updatedFile = updatedProject.files.find(f => f.filename === filename);
+//                 setCurrentFile(updatedFile);
+//             }
+
+//             // Show save confirmation
+//             setOutput("File saved successfully");
+//             setTimeout(() => {
+//                 if (output === "File saved successfully") {
+//                     setOutput("");
+//                 }
+//             }, 3000);
+//         } catch (error) {
+//             console.error("Error saving file:", error);
+//             setOutput(`Error saving file: ${error.message}`);
+//         }
+//     };
+
+//     const addNewFile = async () => {
+//         if (!newFileName.trim()) {
+//             setOutput("Please enter a file name");
+//             return;
+//         }
+
+//         // Add file extension if not present
+//         let filename = newFileName;
+//         if (!filename.includes('.')) {
+//             const extension = getFileExtension(language);
+//             filename = `${filename}.${extension}`;
+//         }
+
+//         try {
+//             const token = localStorage.getItem("token");
+//             if (!token) {
+//                 router.push("/login");
+//                 return;
+//             }
+
+//             const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files`, {
+//                 method: "POST",
+//                 headers: {
+//                     "Content-Type": "application/json",
+//                     "Authorization": `Bearer ${token}`
+//                 },
+//                 body: JSON.stringify({
+//                     filename,
+//                     content: ""
+//                 })
+//             });
+
+//             if (!response.ok) {
+//                 throw new Error(`Failed to add file: ${response.status}`);
+//             }
+
+//             const updatedProject = await response.json();
+//             setProject(updatedProject);
+//             setFiles(updatedProject.files || []);
+
+//             // Select the newly added file
+//             const newFile = updatedProject.files.find(f => f.filename === filename);
+//             if (newFile) {
+//                 setCurrentFile(newFile);
+//                 setCode(newFile.content || "");
+//             }
+
+//             // Reset form
+//             setNewFileName("");
+//             setIsAddingFile(false);
+//             setOutput(`File ${filename} created successfully`);
+//         } catch (error) {
+//             console.error("Error adding file:", error);
+//             setOutput(`Error adding file: ${error.message}`);
+//         }
+//     };
+
+//     const deleteFile = async (filename) => {
+//         if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+//             return;
+//         }
+
+//         try {
+//             const token = localStorage.getItem("token");
+//             if (!token) {
+//                 router.push("/login");
+//                 return;
+//             }
+
+//             const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
+//                 method: "DELETE",
+//                 headers: {
+//                     "Authorization": `Bearer ${token}`
+//                 }
+//             });
+
+//             if (!response.ok) {
+//                 throw new Error(`Failed to delete file: ${response.status}`);
+//             }
+
+//             // Refresh project data
+//             await fetchProject();
+//             setOutput(`File ${filename} deleted successfully`);
+
+//             // If the current file was deleted, reset the editor
+//             if (currentFile && currentFile.filename === filename) {
+//                 setCurrentFile(null);
+//                 setCode("");
+//             }
+//         } catch (error) {
+//             console.error("Error deleting file:", error);
+//             setOutput(`Error deleting file: ${error.message}`);
+//         }
+//     };
+
+//     const getFileExtension = (lang) => {
+//         switch (lang.toLowerCase()) {
+//             case "java": return "java";
+//             case "python": return "py";
+//             case "c": return "c";
+//             case "cpp": return "cpp";
+//             default: return "txt";
+//         }
+//     };
+
+//     const handleRun = async () => {
+//         // Save current file before running
+//         if (currentFile) {
+//             await saveFileContent(currentFile.filename, code);
+//         }
+
+//         try {
+//             const token = localStorage.getItem("token");
+//             if (!token) {
+//                 router.push("/login");
+//                 return;
+//             }
+
+//             // For now, we'll just execute the current file
+//             const response = await fetch("http://localhost:8081/api/code/execute", {
+//                 method: "POST",
+//                 headers: {
+//                     "Content-Type": "application/json",
+//                     "Authorization": `Bearer ${token}`
+//                 },
+//                 body: JSON.stringify({
+//                     code,
+//                     language: language.toLowerCase()
+//                 })
+//             });
+
+//             if (!response.ok) {
+//                 throw new Error(`Execution failed: ${response.status}`);
+//             }
+
+//             const data = await response.text();
+//             setOutput(data);
+//         } catch (error) {
+//             console.error("Error executing code:", error);
+//             setOutput("Error: " + error.message);
+//         }
+//     };
+
+//     if (isLoading) {
+//         return (
+//             <div className="flex justify-center items-center h-screen">
+//                 <p className="text-xl">Loading project...</p>
+//             </div>
+//         );
+//     }
+
+//     if (error) {
+//         return (
+//             <div className="flex justify-center items-center h-screen">
+//                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md">
+//                     <p className="font-bold">Error</p>
+//                     <p>{error}</p>
+//                     <button
+//                         onClick={fetchProject}
+//                         className="mt-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+//                     >
+//                         Try Again
+//                     </button>
+//                 </div>
+//             </div>
+//         );
+//     }
+
+//     return (
+//         <div className="editor-container p-6 bg-gray-100 min-h-screen">
+//             <div className="bg-white p-4 rounded-lg shadow mb-6">
+//                 <h2 className="text-2xl font-bold mb-2 text-center">
+//                     {project ? project.projectName : "Code Editor"}
+//                 </h2>
+//                 <div className="flex justify-center space-x-4 text-gray-600">
+//                     <p>Language: {project?.language}</p>
+//                     <p>Created: {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : ''}</p>
+//                     <p>Project ID: {projectId}</p>
+//                 </div>
+//             </div>
+
+//             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+//                 <div className="lg:col-span-1">
+//                     <div className="bg-white p-4 rounded-lg shadow">
+//                         <div className="flex justify-between items-center mb-4">
+//                             <h3 className="font-medium">File Explorer</h3>
+//                             <button
+//                                 onClick={() => setIsAddingFile(true)}
+//                                 className="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+//                             >
+//                                 Add File
+//                             </button>
+//                         </div>
+
+//                         {isAddingFile && (
+//                             <div className="mb-4">
+//                                 <input
+//                                     type="text"
+//                                     value={newFileName}
+//                                     onChange={(e) => setNewFileName(e.target.value)}
+//                                     placeholder="filename.ext"
+//                                     className="w-full p-2 border border-gray-300 rounded-md mb-2"
+//                                 />
+//                                 <div className="flex space-x-2">
+//                                     <button
+//                                         onClick={addNewFile}
+//                                         className="flex-1 px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+//                                     >
+//                                         Add
+//                                     </button>
+//                                     <button
+//                                         onClick={() => setIsAddingFile(false)}
+//                                         className="flex-1 px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+//                                     >
+//                                         Cancel
+//                                     </button>
+//                                 </div>
+//                             </div>
+//                         )}
+
+//                         <div className="border border-gray-200 rounded-md overflow-hidden">
+//                             {files.length > 0 ? (
+//                                 <ul className="divide-y divide-gray-200">
+//                                     {files.map((file) => (
+//                                         <li key={file.filename} className="hover:bg-gray-50">
+//                                             <div className="px-3 py-2 flex justify-between items-center">
+//                                                 <button
+//                                                     onClick={() => handleFileChange(file)}
+//                                                     className={`text-left flex-grow truncate ${currentFile && currentFile.filename === file.filename ? 'font-bold text-blue-600' : ''}`}
+//                                                 >
+//                                                     {file.filename}
+//                                                 </button>
+//                                                 <button
+//                                                     onClick={() => deleteFile(file.filename)}
+//                                                     className="text-red-500 hover:text-red-700 ml-2"
+//                                                     title="Delete file"
+//                                                 >
+//                                                     ×
+//                                                 </button>
+//                                             </div>
+//                                         </li>
+//                                     ))}
+//                                 </ul>
+//                             ) : (
+//                                 <p className="p-3 text-gray-500 text-center">No files yet. Add your first file!</p>
+//                             )}
+//                         </div>
+//                     </div>
+//                 </div>
+
+//                 <div className="lg:col-span-3">
+//                     <div className="bg-white p-4 rounded-lg shadow mb-4">
+//                         <div className="flex justify-between items-center mb-2">
+//                             <div className="text-sm font-medium text-gray-700">
+//                                 {currentFile ? `Editing: ${currentFile.filename}` : "No file selected"}
+//                             </div>
+//                             <select
+//                                 value={language}
+//                                 onChange={(e) => setLanguage(e.target.value)}
+//                                 className="p-1 text-sm border border-gray-300 rounded-md"
+//                             >
+//                                 <option value="java">Java</option>
+//                                 <option value="python">Python</option>
+//                                 <option value="c">C</option>
+//                                 <option value="cpp">C++</option>
+//                             </select>
+//                         </div>
+
+//                         <div className="border border-gray-200 rounded-md overflow-hidden">
+//                             <CodeMirror
+//                                 value={code}
+//                                 options={{
+//                                     mode: language,
+//                                     lineNumbers: true,
+//                                     theme: 'default'
+//                                 }}
+//                                 onChange={(value) => setCode(value)}
+//                                 height="400px"
+//                             />
+//                         </div>
+
+//                         <div className="flex space-x-2 mt-4">
+//                             <button
+//                                 onClick={handleRun}
+//                                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
+//                                 disabled={!currentFile}
+//                             >
+//                                 Run Code
+//                             </button>
+
+//                             {currentFile && (
+//                                 <button
+//                                     onClick={() => saveFileContent(currentFile.filename, code)}
+//                                     className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition"
+//                                 >
+//                                     Save File
+//                                 </button>
+//                             )}
+//                         </div>
+//                     </div>
+
+//                     <div className="bg-white p-4 rounded-lg shadow">
+//                         <h3 className="font-medium mb-2">Output</h3>
+//                         <pre className="p-4 bg-gray-800 text-white rounded-md overflow-auto h-48">{output}</pre>
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//     );
+// }export const metadata = {
+    title: 'Profile Page',
+    description: 'This is the profile page of the application.',
+};
+export default function ProfileLayout({ children }) {
+    return (
+        <>{children}</>
+    )
+}export default function ProfileInfo({ user, onEdit }) {
+    return (
+        <div>
+            <p className="text-lg"><strong>First Name:</strong> {user.firstName}</p>
+            <p className="text-lg"><strong>Last Name:</strong> {user.lastName}</p>
+            <p className="text-lg"><strong>Username:</strong> {user.userIdentifier}</p>
+            <p className="text-lg"><strong>Email:</strong> {user.email}</p>
+
+            <button
+                onClick={onEdit}
+                className="bg-blue-500 text-white px-4 py-2 mt-4 rounded hover:bg-blue-600">
+                Edit
+            </button>
+        </div>
+    );
+}
+"use client";
+import { useEffect, useState } from "react";
+import ProfileInfo from "./ProfileInfo";
+import ProfileEditForm from "./ProfileEditForm";
+
+export default function ProfilePage() {
+    const [user, setUser] = useState(null);
+    const [error, setError] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [formData, setFormData] = useState({});
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const token = localStorage.getItem("token");
+            console.log("#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+            console.log(token);
+
+
+            if (!token) {
+                setError("No token found. Please log in.");
+                return;
+            }
+
+            try {
+                const response = await fetch("http://localhost:8080/api/data/user-info", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch user info");
+                }
+
+                const data = await response.json();
+                setUser(data);
+                setFormData(data);
+            } catch (err) {
+                setError(err.message);
+            }
+        };
+
+        fetchUserData();
+    }, []);
+
+    const handleEdit = () => setIsEditing(true);
+    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleSave = async () => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            setError("No token found. Please log in.");
+            return;
+        }
+
+        try {
+            await fetch("http://localhost:8080/api/data/edit-info", {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(formData),
+            });
+
+            setUser(formData);
+            setIsEditing(false);
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen py-10 bg-gray-100">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-96 text-center">
+                <h1 className="text-4xl font-bold text-blue-600 mb-4">Profile Page</h1>
+                {error && <p className="text-red-500">{error}</p>}
+                {user ? (
+                    <div className="mt-4">
+                        {isEditing ? (
+                            <ProfileEditForm formData={formData} onChange={handleChange} onSave={handleSave} />
+                        ) : (
+                            <ProfileInfo user={user} onEdit={handleEdit} />
+                        )}
+                    </div>
+                ) : (
+                    !error && <p>Loading user information...</p>
+                )}
+            </div>
+        </div>
+    );
+}
+export default function ProfileEditForm({ formData, onChange, onSave }) {
+    return (
+        <div>
+            <input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={onChange}
+                className="border p-2 rounded w-full mb-2"
+            />
+            <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={onChange}
+                className="border p-2 rounded w-full mb-2"
+            />
+            <input
+                type="text"
+                name="userIdentifier"
+                value={formData.userIdentifier}
+                onChange={onChange}
+                className="border p-2 rounded w-full mb-2"
+            />
+            <button
+                onClick={onSave}
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                Save
+            </button>
+        </div>
+    );
+}
+export const metadata = {
+    title: 'Compiler',
+    description: 'This is the compiler page of the application.',
+};
+export default function CompilerLayout({ children }) {
+    return (
+        <>{children}</>
+    )
+}"use client";
+import CodeMirror from "@uiw/react-codemirror";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { connectWebSocket, sendEditMessage } from "@/lib/websocket"; // Adjust the import path as necessary
+export default function CodeEditor({ projectId }) {
+    const [code, setCode] = useState("");
+    const [language, setLanguage] = useState("java");
+    const [output, setOutput] = useState("");
+    const [files, setFiles] = useState([]);
+    const [currentFile, setCurrentFile] = useState(null);
+    const [newFileName, setNewFileName] = useState("");
+    const [isAddingFile, setIsAddingFile] = useState(false);
+    const [project, setProject] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const router = useRouter();
+    const [showHistory, setShowHistory] = useState(false);
+    const [history, setHistory] = useState([]);
+
+    const fetchFileHistory = async (filename) => {
+        try {
+            const token = localStorage.getItem("token");
+            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}/history`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await response.json();
+            setHistory(data);
+        } catch (err) {
+            console.error("Failed to fetch history:", err);
+        }
+    };
+
+
+    useEffect(() => {
+        if (showHistory && currentFile) {
+            fetchFileHistory(currentFile.filename);
+        }
+    }, [showHistory]);
+
+
+    function getCurrentUserId() {
+        const userId = localStorage.getItem("userId");
+        if (!userId) {
+            router.push("/login");
+            return null;
+        }
+        return userId;
+    }
+
+
+    useEffect(() => {
+        // Fetch project data when component mounts
+        if (projectId) {
+            fetchProject();
+        }
+    }, [projectId]);
+
+    useEffect(() => {
+        connectWebSocket((incoming) => {
+            if (
+                incoming.projectId === projectId &&
+                incoming.filename === currentFile?.filename &&
+                incoming.userId !== getCurrentUserId()
+            ) {
+                console.log("Received edit from another user");
+                setCode(incoming.content); // update the code for real-time sync
+            }
+        });
+    }, [projectId, currentFile]);
+
+    const fetchProject = async () => {
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/login");
+                return;
+            }
+
+            const response = await fetch(`http://localhost:8082/api/code-file/project/${projectId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch project: ${response.status}`);
+            }
+
+            const projectData = await response.json();
+            setProject(projectData);
+            setLanguage(projectData.language.toLowerCase());
+
+            // Set files from project
+            if (projectData.files && projectData.files.length > 0) {
+                setFiles(projectData.files);
+                setCurrentFile(projectData.files[0]);
+                setCode(projectData.files[0].content || "");
+            }
+        } catch (error) {
+            console.error("Error fetching project:", error);
+            setError("Failed to load project. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // const handleFileChange = (file) => {
+    //     // Save current file content before switching
+    //     if (currentFile) {
+    //         saveFileContent(currentFile.filename, code);
+    //     }
+
+    //     setCurrentFile(file);
+    //     setCode(file.content || "");
+    // };
+
+    const handleFileChange = async (file) => {
+        // If no file change needed
+        if (currentFile && currentFile.filename === file.filename) {
+            return;
+        }
+
+        // Save current file content before switching if there are unsaved changes
+        if (currentFile && code !== currentFile.content) {
+            try {
+                await saveFileContent(currentFile.filename, code);
+            } catch (error) {
+                console.error("Error saving file before switch:", error);
+                setOutput(`Failed to save ${currentFile.filename}: ${error.message}`);
+                return; // Don't switch files if save fails
+            }
+        }
+
+        // Now switch to the new file
+        setCurrentFile(file);
+        setCode(file.content || "");
+    };
+    const saveFileContent = async (filename, content) => {
+        const file = files.find(f => f.filename === filename);
+        if (file && file.content === content) {
+            return;
+        }
+    
+        try {
+            const token = localStorage.getItem("token");
+            console.log("NEWNEWNWENEW ");
+
+            console.log("projectId");
+            console.log(projectId);
+
+            console.log("filename");
+            console.log(filename);
+
+            console.log("content");
+            console.log(content);
+
+            console.log("userId");
+            console.log(getCurrentUserId());
+            
+        
+        
+            
+            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    content,
+                    userId: getCurrentUserId()
+                })
+            });
+    
+            if (!response.ok) {
+                throw new Error(`Failed to save file: ${response.status}`);
+            }
+    
+            const updatedProject = await response.json();
+            setProject(updatedProject);
+            setFiles(updatedProject.files || []);
+            const updatedFile = updatedProject.files.find(f => f.filename === filename);
+            setCurrentFile(updatedFile);
+            setOutput("File saved successfully");
+        } catch (error) {
+            console.error("Error saving file:", error);
+            setOutput(`Error saving file: ${error.message}`);
+        }
+    };
+    
+    const saveFileContentOO = async (filename, content) => {
+        const file = files.find(f => f.filename === filename);
+        if (file && file.content === content) {
+            return;
+        }
+        try {
+
+
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/login");
+                return;
+            }
+
+            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ content })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to save file: ${response.status}`);
+            }
+
+            const updatedProject = await response.json();
+            setProject(updatedProject);
+            setFiles(updatedProject.files || []);
+
+            // Update currentFile with the new content
+            if (currentFile && currentFile.filename === filename) {
+                const updatedFile = updatedProject.files.find(f => f.filename === filename);
+                setCurrentFile(updatedFile);
+            }
+
+            // Show save confirmation
+            setOutput("File saved successfully");
+            setTimeout(() => {
+                if (output === "File saved successfully") {
+                    setOutput("");
+                }
+            }, 3000);
+        } catch (error) {
+            console.error("Error saving file:", error);
+            setOutput(`Error saving file: ${error.message}`);
+        }
+    };
+
+    const addNewFile = async () => {
+        if (!newFileName.trim()) {
+            setOutput("Please enter a file name");
+            return;
+        }
+
+        // Add file extension if not present
+        let filename = newFileName;
+        if (!filename.includes('.')) {
+            const extension = getFileExtension(language);
+            filename = `${filename}.${extension}`;
+        }
+
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/login");
+                return;
+            }
+
+            
+            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    filename,
+                    content: ""
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to add file: ${response.status}`);
+            }
+
+            const updatedProject = await response.json();
+            setProject(updatedProject);
+            setFiles(updatedProject.files || []);
+
+            // Select the newly added file
+            const newFile = updatedProject.files.find(f => f.filename === filename);
+            if (newFile) {
+                setCurrentFile(newFile);
+                setCode(newFile.content || "");
+            }
+
+            // Reset form
+            setNewFileName("");
+            setIsAddingFile(false);
+            setOutput(`File ${filename} created successfully`);
+        } catch (error) {
+            console.error("Error adding file:", error);
+            setOutput(`Error adding file: ${error.message}`);
+        }
+    };
+
+    const deleteFile = async (filename) => {
+        if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/login");
+                return;
+            }
+
+            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to delete file: ${response.status}`);
+            }
+
+            // Refresh project data
+            await fetchProject();
+            setOutput(`File ${filename} deleted successfully`);
+
+            // If the current file was deleted, reset the editor
+            if (currentFile && currentFile.filename === filename) {
+                setCurrentFile(null);
+                setCode("");
+            }
+        } catch (error) {
+            console.error("Error deleting file:", error);
+            setOutput(`Error deleting file: ${error.message}`);
+        }
+    };
+
+    const getFileExtension = (lang) => {
+        switch (lang.toLowerCase()) {
+            case "java": return "java";
+            case "python": return "py";
+            case "c": return "c";
+            case "cpp": return "cpp";
+            default: return "txt";
+        }
+    };
+
+    const handleRun = async () => {
+        // Save current file before running
+        if (currentFile) {
+            await saveFileContent(currentFile.filename, code);
+        }
+
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                router.push("/login");
+                return;
+            }
+
+            // For now, we'll just execute the current file
+            const response = await fetch("http://localhost:8081/api/code/execute", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    code,
+                    language: language.toLowerCase()
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Execution failed: ${response.status}`);
+            }
+
+            const data = await response.text();
+            setOutput(data);
+        } catch (error) {
+            console.error("Error executing code:", error);
+            setOutput("Error: " + error.message);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <p className="text-xl">Loading project...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex justify-center items-center h-screen">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded max-w-md">
+                    <p className="font-bold">Error</p>
+                    <p>{error}</p>
+                    <button
+                        onClick={fetchProject}
+                        className="mt-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                    >
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="editor-container p-6 bg-gray-100 min-h-screen">
+            <div className="bg-white p-4 rounded-lg shadow mb-6">
+                <h2 className="text-2xl font-bold mb-2 text-center">
+                    {project ? project.projectName : "Code Editor"}
+                </h2>
+                <div className="flex justify-center space-x-4 text-gray-600">
+                    <p>Language: {project?.language}</p>
+                    <p>Created: {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : ''}</p>
+                    <p>Project ID: {projectId}</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
+                <div className="lg:col-span-1">
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-medium">File Explorer</h3>
+                            <button
+                                onClick={() => setIsAddingFile(true)}
+                                className="px-2 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
+                            >
+                                Add File
+                            </button>
+                        </div>
+
+                        {isAddingFile && (
+                            <div className="mb-4">
+                                <input
+                                    type="text"
+                                    value={newFileName}
+                                    onChange={(e) => setNewFileName(e.target.value)}
+                                    placeholder="filename.ext"
+                                    className="w-full p-2 border border-gray-300 rounded-md mb-2"
+                                />
+                                <div className="flex space-x-2">
+                                    <button
+                                        onClick={addNewFile}
+                                        className="flex-1 px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                                    >
+                                        Add
+                                    </button>
+                                    <button
+                                        onClick={() => setIsAddingFile(false)}
+                                        className="flex-1 px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="border border-gray-200 rounded-md overflow-hidden">
+                            {files.length > 0 ? (
+                                <ul className="divide-y divide-gray-200">
+                                    {files.map((file) => (
+                                        <li key={file.filename} className="hover:bg-gray-50">
+                                            <div className="px-3 py-2 flex justify-between items-center">
+                                                <button
+                                                    onClick={() => handleFileChange(file)}
+                                                    className={`text-left flex-grow truncate ${currentFile && currentFile.filename === file.filename ? 'font-bold text-blue-600' : ''}`}
+                                                >
+                                                    {file.filename}
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteFile(file.filename)}
+                                                    className="text-red-500 hover:text-red-700 ml-2"
+                                                    title="Delete file"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="p-3 text-gray-500 text-center">No files yet. Add your first file!</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="lg:col-span-3">
+                    <div className="bg-white p-4 rounded-lg shadow mb-4">
+                        <div className="flex justify-between items-center mb-2">
+                            <div className="text-sm font-medium text-gray-700">
+                                {currentFile ? `Editing: ${currentFile.filename}` : "No file selected"}
+                            </div>
+                            <select
+                                value={language}
+                                onChange={(e) => setLanguage(e.target.value)}
+                                className="p-1 text-sm border border-gray-300 rounded-md"
+                            >
+                                <option value="java">Java</option>
+                                <option value="python">Python</option>
+                                <option value="c">C</option>
+                                <option value="cpp">C++</option>
+                            </select>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-md overflow-hidden">
+                            <CodeMirror
+                                value={code}
+                                options={{
+                                    mode: language,
+                                    lineNumbers: true,
+                                    theme: 'default'
+                                }}
+                                onChange={(value) => {
+                                    setCode(value);
+
+                                    sendEditMessage({
+                                        projectId,
+                                        filename: currentFile?.filename,
+                                        content: value,
+                                        userId: getCurrentUserId(),
+                                        timestamp: new Date().toISOString(),
+                                    });
+                                }}
+
+                                height="400px"
+                            />
+                        </div>
+
+                        <div className="flex space-x-2 mt-4">
+                            <button
+                                onClick={handleRun}
+                                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
+                                disabled={!currentFile}
+                            >
+                                Run Code
+                            </button>
+
+                            {currentFile && (
+                                <>
+                                    <button
+                                        onClick={() => saveFileContent(currentFile.filename, code)}
+                                        className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition"
+                                    >
+                                        Save File
+                                    </button>
+
+                                    <button
+                                        onClick={() => setShowHistory(true)}
+                                        className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                                    >
+                                        View History
+                                    </button>
+
+                                </>
+
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <h3 className="font-medium mb-2">Output</h3>
+                        <pre className="p-4 bg-gray-800 text-white rounded-md overflow-auto h-48">{output}</pre>
+                    </div>
+
+                    {showHistory && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+                            <div className="bg-white p-6 rounded shadow-lg max-w-lg w-full">
+                                <h2 className="text-xl font-bold mb-4">File History</h2>
+                                <ul className="space-y-2 max-h-80 overflow-y-auto">
+                                    {history.map((v, index) => (
+                                        <li key={index} className="border-b pb-2">
+                                            <p><strong>User:</strong> {v.editedBy}</p>
+                                            <p><strong>Time:</strong> {new Date(v.timestamp).toLocaleString()}</p>
+                                            <pre className="bg-gray-100 p-2 rounded overflow-auto">{v.content}</pre>
+                                            <button
+                                                className="mt-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                                                onClick={() => setCode(v.content)}
+                                            >
+                                                Restore This Version
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button
+                                    className="mt-4 px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                    onClick={() => setShowHistory(false)}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            </div>
+        </div>
+    );
+}import SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
+
+let stompClient = null;
+
+export function connectWebSocket(onMessage) {
+    stompClient = new Client({
+        webSocketFactory: () => new SockJS('http://localhost:8082/ws'),
+        reconnectDelay: 5000,
+        onConnect: () => {
+            console.log('✅ Connected to WebSocket');
+
+            stompClient.subscribe('/topic/updates', (message) => {
+                if (message.body) {
+                    const data = JSON.parse(message.body);
+                    onMessage(data);
+                }
+            });
+        },
+        onDisconnect: () => console.log('❌ Disconnected from WebSocket'),
+        onStompError: (frame) => console.error('STOMP Error:', frame),
+    });
+
+    stompClient.activate();
+}
+
+export function sendEditMessage(message) {
+    if (stompClient && stompClient.connected) {
+        stompClient.publish({
+            destination: '/app/edit',
+            body: JSON.stringify(message),
+        });
+    }
+}

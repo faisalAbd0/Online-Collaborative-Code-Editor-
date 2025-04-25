@@ -2,55 +2,63 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import CodeEditor from "@/app/compiler/page";
+
 export default function ProjectPage() {
     const params = useParams();
     const projectId = params.id;
+    const router = useRouter();
+
     const [project, setProject] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    const router = useRouter();
-
+    const [collaborators, setCollaborators] = useState([]);
+    
     useEffect(() => {
-        console.log("Fetching project info...");
+        async function fetchAllData() {
+            console.log("Fetching project info...");
 
-        fetchProjectInfo();
-
-        console.log("Project info fetched");
-
-    }, [projectId]);
-
-    const fetchProjectInfo = async () => {
-        setIsLoading(true);
-        try {
             const token = localStorage.getItem("token");
             if (!token) {
                 router.push("/login");
                 return;
             }
-            console.log(projectId);
 
-            const response = await fetch(`http://localhost:8082/api/code-file/project/${projectId}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
+            try {
+                // Fetch project data
+                const projectRes = await fetch(`http://localhost:8082/api/code-file/project/${projectId}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                if (!projectRes.ok) {
+                    throw new Error(`Failed to fetch project info: ${projectRes.status}`);
                 }
-            });
 
-            if (!response.ok) {
-                throw new Error(`Failed to fetch project info: ${response.status}`);
+                const projectData = await projectRes.json();
+                setProject(projectData);
+
+                // Fetch collaborators
+                const collabRes = await fetch(`http://localhost:8082/api/code-file/${projectId}/collaborators`);
+
+                if (!collabRes.ok) {
+                    throw new Error(`Failed to fetch collaborators`);
+                }
+
+                const collabList = await collabRes.json();
+                setCollaborators(collabList);
+
+                console.log("Project info and collaborators fetched");
+            } catch (err) {
+                console.error("Error fetching data:", err);
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
             }
-
-            const data = await response.json();
-            console.log(data);
-
-            setProject(data);
-        } catch (err) {
-            console.error("Error fetching project:", err);
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
         }
-    };
+
+        fetchAllData();
+    }, [projectId, router]);
 
     if (isLoading) {
         return (
@@ -97,10 +105,23 @@ export default function ProjectPage() {
                 </div>
             </nav>
 
-            <div className="container mx-auto">
-                <CodeEditor
-                    project={project}
-                    projectId={projectId} />
+            <div className="container mx-auto p-4">
+                {/* Collaborators */}
+                <div className="bg-white p-4 rounded shadow mb-4">
+                    <h2 className="text-lg font-semibold mb-2">Collaborators</h2>
+                    {collaborators.length > 0 ? (
+                        <ul className="list-disc ml-5 text-sm text-gray-700">
+                            {collaborators.map((collab, idx) => (
+                                <li key={idx}>{collab.userIdentifier}</li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-gray-500 text-sm">No collaborators added yet.</p>
+                    )}
+                </div>
+
+                {/* Code Editor */}
+                <CodeEditor project={project} projectId={projectId} />
             </div>
         </div>
     );

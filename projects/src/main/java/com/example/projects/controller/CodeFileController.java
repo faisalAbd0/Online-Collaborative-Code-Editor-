@@ -1,5 +1,6 @@
 package com.example.projects.controller;
 
+import com.example.projects.dto.AddCollaboratorRequest;
 import com.example.projects.dto.TokenValidationRequest;
 import com.example.projects.dto.TokenValidationResponse;
 import com.example.projects.models.CodeFile;
@@ -116,6 +117,30 @@ public class CodeFileController {
         }
         return ResponseEntity.notFound().build();
     }
+
+
+    @PostMapping("/add-collaborator")
+    public ResponseEntity<?> addCollaborator(@RequestBody AddCollaboratorRequest request) {
+        Optional<CodeProject> projectOpt = codeFileService.findById(String.valueOf(request.getProjectId()));
+        if (projectOpt.isEmpty()) return ResponseEntity.notFound().build();
+
+        CodeProject project = projectOpt.get();
+        project.addCollaborator(request.getCollaboratorId());
+        codeFileService.save(project);
+
+        return ResponseEntity.ok("Collaborator added");
+    }
+
+    @GetMapping("/{projectId}/collaborators")
+    public ResponseEntity<List<Long>> getCollaborators(@PathVariable String projectId) {
+        Optional<CodeProject> projectOpt = codeFileService.findById(projectId);
+        if (projectOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        CodeProject project = projectOpt.get();
+        return ResponseEntity.ok(project.getCollaboratorIds());
+    }
+
 
 
 

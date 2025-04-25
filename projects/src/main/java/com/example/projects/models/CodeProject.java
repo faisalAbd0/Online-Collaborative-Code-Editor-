@@ -35,6 +35,15 @@ public class CodeProject {
     @JoinColumn(name = "project_id")
     private List<CodeFile> files = new ArrayList<>();
 
+    @ElementCollection
+    private List<Long> collaboratorIds = new ArrayList<>();
+
+    public void addCollaborator(Long userId) {
+        if (!collaboratorIds.contains(userId)) {
+            collaboratorIds.add(userId);
+        }
+    }
+
     public CodeProject(String projectName, String description, Language language,
                        LocalDateTime createdAt, Long userId) {
         this.projectName = projectName;

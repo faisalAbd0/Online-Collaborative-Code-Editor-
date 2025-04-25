@@ -17,6 +17,8 @@ export default function CodeEditor({ projectId }) {
     const router = useRouter();
     const [showHistory, setShowHistory] = useState(false);
     const [history, setHistory] = useState([]);
+    const [collaboratorId, setCollaboratorId] = useState("");
+
 
     const fetchFileHistory = async (filename) => {
         try {
@@ -145,7 +147,7 @@ export default function CodeEditor({ projectId }) {
         if (file && file.content === content) {
             return;
         }
-    
+
         try {
             const token = localStorage.getItem("token");
             console.log("NEWNEWNWENEW ");
@@ -161,10 +163,10 @@ export default function CodeEditor({ projectId }) {
 
             console.log("userId");
             console.log(getCurrentUserId());
-            
-        
-        
-            
+
+
+
+
             const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
                 method: "PUT",
                 headers: {
@@ -176,11 +178,11 @@ export default function CodeEditor({ projectId }) {
                     userId: getCurrentUserId()
                 })
             });
-    
+
             if (!response.ok) {
                 throw new Error(`Failed to save file: ${response.status}`);
             }
-    
+
             const updatedProject = await response.json();
             setProject(updatedProject);
             setFiles(updatedProject.files || []);
@@ -193,56 +195,6 @@ export default function CodeEditor({ projectId }) {
         }
     };
     
-    const saveFileContentOO = async (filename, content) => {
-        const file = files.find(f => f.filename === filename);
-        if (file && file.content === content) {
-            return;
-        }
-        try {
-
-
-            const token = localStorage.getItem("token");
-            if (!token) {
-                router.push("/login");
-                return;
-            }
-
-            const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files/${filename}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ content })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to save file: ${response.status}`);
-            }
-
-            const updatedProject = await response.json();
-            setProject(updatedProject);
-            setFiles(updatedProject.files || []);
-
-            // Update currentFile with the new content
-            if (currentFile && currentFile.filename === filename) {
-                const updatedFile = updatedProject.files.find(f => f.filename === filename);
-                setCurrentFile(updatedFile);
-            }
-
-            // Show save confirmation
-            setOutput("File saved successfully");
-            setTimeout(() => {
-                if (output === "File saved successfully") {
-                    setOutput("");
-                }
-            }, 3000);
-        } catch (error) {
-            console.error("Error saving file:", error);
-            setOutput(`Error saving file: ${error.message}`);
-        }
-    };
-
     const addNewFile = async () => {
         if (!newFileName.trim()) {
             setOutput("Please enter a file name");
@@ -263,7 +215,7 @@ export default function CodeEditor({ projectId }) {
                 return;
             }
 
-            
+
             const response = await fetch(`http://localhost:8082/api/code-file/${projectId}/files`, {
                 method: "POST",
                 headers: {
@@ -603,6 +555,59 @@ export default function CodeEditor({ projectId }) {
 
                 </div>
             </div>
+
+            <div className="bg-white shadow p-4 rounded-lg mt-6 max-w-md mx-auto">
+                <h2 className="text-xl font-semibold mb-4">Add Collaborator</h2>
+                <form
+                    onSubmit={async (e) => {
+                        e.preventDefault();
+                        try {
+                            const token = localStorage.getItem("token");
+                            if (!token) return alert("Please login first.");
+
+                            const response = await fetch(`http://localhost:8082/api/code-file/add-collaborator`, {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                    Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({
+                                    projectId: projectId,
+                                    collaboratorId: collaboratorId, // from state
+                                }),
+                            });
+
+                            if (!response.ok) {
+                                throw new Error("Failed to add collaborator");
+                            }
+
+                            alert("Collaborator added!");
+                            setCollaboratorId("");
+                        } catch (err) {
+                            console.error(err);
+                            alert("Error adding collaborator");
+                        }
+                    }}
+                    className="space-y-4"
+                >
+                    <input
+                        type="text"
+                        placeholder="Collaborator ID"
+                        value={collaboratorId}
+                        onChange={(e) => setCollaboratorId(e.target.value)}
+                        className="w-full px-3 py-2 border rounded"
+                        required
+                    />
+                    <button
+                        type="submit"
+                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    >
+                        Add Collaborator
+                    </button>
+                </form>
+            </div>
+
+
         </div>
     );
 }

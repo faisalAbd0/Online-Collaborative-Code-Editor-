@@ -78,8 +78,8 @@ services:
       - "3306:3306"
   backend:
     build:
-      context: ./projects-test
-    container_name: backend-spring-container
+      context: ./auth
+    container_name: auth-container
     restart: always
     depends_on:
       - mysql
