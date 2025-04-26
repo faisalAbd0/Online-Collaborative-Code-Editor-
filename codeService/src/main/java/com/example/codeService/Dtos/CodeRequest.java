@@ -9,4 +9,6 @@ import lombok.*;
 public class CodeRequest {
     private String code;
     private String language;
+    private String mainClass;
+
 }
