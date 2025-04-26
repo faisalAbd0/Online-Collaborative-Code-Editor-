@@ -26,13 +26,26 @@ public class JwtService {
         return generateToken(claims, userDetails);
     }
 
+    public String generateToken(
+            Map<String, Object> extraClaims,
+            UserDetails userDetails
+    ) {
+        return Jwts.builder()
+                .setClaims(extraClaims)
+                .setSubject(userDetails.getUsername())
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 24))
+                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public boolean isTokenExpired(String token) {
         return extractExpDate(token).before(new Date());
     }
-
     private Date extractExpDate(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
+
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         String username = extractUsername(token);
@@ -47,10 +60,6 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    public Long extractIdToken(String token) {
-        return extractClaim(token, claims -> claims.get("id", Long.class));
-    }
-
     private Claims extractClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
@@ -58,6 +67,12 @@ public class JwtService {
                 .parseClaimsJws(token)
                 .getBody();
     }
+
+    public Long extractIdToken(String token) {
+        return extractClaim(token, claims -> claims.get("id", Long.class));
+    }
+
+
     private Key getSignInKey(){
         byte[] keyBytes = Decoders.BASE64.decode(SECRET);
         return Keys.hmacShaKeyFor(keyBytes);
@@ -65,16 +80,5 @@ public class JwtService {
 
 
 
-    public String generateToken(
-            Map<String, Object> extraClaims,
-            UserDetails userDetails
-    ) {
-        return Jwts.builder()
-                .setClaims(extraClaims)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 24))
-                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
-                .compact();
-    }
+
 }

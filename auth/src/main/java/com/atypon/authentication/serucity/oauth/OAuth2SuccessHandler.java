@@ -34,7 +34,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                                    HttpServletResponse response,
                                    Authentication authentication) throws IOException {
 
-        OAuth2AuthenticationToken oAuth2Token = getOAuth2Token(authentication);
+        OAuth2AuthenticationToken oAuth2Token = validateOAuth2Token(authentication);
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 
         LoginStrategy loginStrategy = determineStrategy(oAuth2Token.getAuthorizedClientRegistrationId());
@@ -56,7 +56,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         throw new IllegalStateException("Oauth Strategy not provided: " + registrationId);
     }
 
-    private OAuth2AuthenticationToken getOAuth2Token(Authentication authentication) {
+    private OAuth2AuthenticationToken validateOAuth2Token(Authentication authentication) {
         if (!(authentication instanceof OAuth2AuthenticationToken token)) {
             throw new IllegalStateException("Unexpected authentication type: " + authentication);
         }

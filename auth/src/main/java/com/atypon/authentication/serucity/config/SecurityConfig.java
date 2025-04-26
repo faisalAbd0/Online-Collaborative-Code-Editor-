@@ -24,7 +24,9 @@ public class SecurityConfig {
 
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(
+                        session ->
+                                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth ->  auth
                         .requestMatchers("/api/auth/**", "/api/jwt/**")
                                 .permitAll()
@@ -33,7 +35,6 @@ public class SecurityConfig {
                 .oauth2Login(oauth ->
                         oauth.successHandler(auth2SuccessHandler))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-//                .cors(cors->{})
         ;
 
         return http.build();
