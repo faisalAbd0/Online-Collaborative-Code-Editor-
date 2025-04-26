@@ -710,7 +710,10 @@ export default function CodeEditor({ projectId }) {
         if (currentFile) await saveFileContent(currentFile.filename, code);
         try {
             const token = localStorage.getItem("token"); if (!token) { router.push("/login"); return; }
-            const res = await fetch("http://localhost:8081/api/code/execute", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ code, language }) });
+            const res = await fetch("http://localhost:8081/api/code/execute", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                 body: JSON.stringify({ 
+                code, language, mainClass
+             }) });
             if (!res.ok) throw new Error(`Execution failed: ${res.status}`);
             setOutput(await res.text());
         } catch (err) { console.error(err); setOutput("Error: " + err.message); }
