@@ -49,6 +49,7 @@ public class CodeExecutionController {
 
     @PostMapping("/execute")
     public String executeCode(@RequestBody CodeRequest req) throws IOException {
+        System.out.println("##############################NEW EXECUTE CODE REQUEST###########################");
         MultiFileCodeRequest mreq=new MultiFileCodeRequest();
         mreq.setLanguage(req.getLanguage());
         mreq.setMainClass(req.getMainClass());
@@ -58,6 +59,7 @@ public class CodeExecutionController {
 
     @PostMapping("/execute-multi")
     public String executeMulti(@RequestBody MultiFileCodeRequest req) throws IOException {
+        System.out.println("##############################NEW MUTI EXECUTE CODE REQUEST###########################");
         return codeExecutionService.execute(req);
     }
 }
